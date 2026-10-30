@@ -1,0 +1,779 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Appalti">
+<meta name="theme-color" content="#0E7C86">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>:root{color-scheme:light dark;padding-block:env(safe-area-inset-top,0px) env(safe-area-inset-bottom,0px)}body{margin:0}[hidden]{display:none!important}</style>
+<title>Appalti Pulizie</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Hanken+Grotesk:wght@400;500;600;700&display=swap">
+<style>
+/* Layout: una colonna da telefono. In alto i totali della ditta, poi una scheda per pulitore con la tabella dei suoi condomini (ricavo, stipendio, utile) e, in fondo, i condomini non assegnati. */
+:root {
+  --bg: #EEF3F2;
+  --surface: #FFFFFF;
+  --surface2: #F3F8F7;
+  --ink: #12292B;
+  --muted: #587072;
+  --line: #D3DFDE;
+  --accent: #0E7C86;
+  --accent-ink: #FFFFFF;
+  --bad: #B3392B;
+  --scrim: rgba(10, 24, 26, 0.5);
+  --font-display: "Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-body: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0D1819;
+    --surface: #14262A;
+    --surface2: #19302F;
+    --ink: #E5F0EF;
+    --muted: #8FA8A8;
+    --line: #25403F;
+    --accent: #3CC0C9;
+    --accent-ink: #062226;
+    --bad: #FF8A7A;
+    --scrim: rgba(0, 0, 0, 0.6);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0D1819;
+  --surface: #14262A;
+  --surface2: #19302F;
+  --ink: #E5F0EF;
+  --muted: #8FA8A8;
+  --line: #25403F;
+  --accent: #3CC0C9;
+  --accent-ink: #062226;
+  --bad: #FF8A7A;
+  --scrim: rgba(0, 0, 0, 0.6);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 15px;
+  line-height: 1.4;
+  padding-block: 14px 48px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  -webkit-tap-highlight-color: transparent;
+}
+body.lock { overflow: hidden; }
+button, input, select { font: inherit; color: inherit; }
+button { cursor: pointer; touch-action: manipulation; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.wrap { max-width: 560px; margin: 0 auto; display: flex; flex-direction: column; gap: 14px; }
+.top > div { min-width: 0; }
+.top { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; }
+h1 { font-family: var(--font-display); font-weight: 800; font-size: 1.75rem; line-height: 1.05; letter-spacing: -0.02em; margin: 0; }
+.sub { margin: 4px 0 0; color: var(--muted); font-size: 0.85rem; }
+.btn {
+  white-space: nowrap;
+  border: 0;
+  background: var(--accent);
+  color: var(--accent-ink);
+  font-weight: 700;
+  border-radius: 12px;
+  padding: 0 16px;
+  min-height: 44px;
+}
+.btn:active { transform: translateY(1px); }
+.btn.block { width: 100%; }
+.ghost {
+  background: transparent;
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font-weight: 600;
+  border-radius: 10px;
+  padding: 0 12px;
+  min-height: 36px;
+  font-size: 0.85rem;
+}
+.ghost.danger { color: var(--bad); }
+.ghost.block { width: 100%; min-height: 44px; font-size: 0.95rem; }
+
+.summary { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 6px; display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.stat { min-width: 0; padding: 8px 10px; border-radius: 12px; }
+.stat.main { background: var(--surface2); }
+.stat span { display: block; font-size: 0.72rem; color: var(--muted); margin-bottom: 2px; }
+.stat b { display: block; font-family: var(--font-display); font-weight: 600; font-size: 1.05rem; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.stat.main b { font-size: 1.3rem; font-weight: 800; }
+.neg { color: var(--bad); }
+
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+.card.loose { border-style: dashed; background: transparent; }
+.chead { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 12px 14px 8px; }
+.chead h2 { font-family: var(--font-display); font-weight: 600; font-size: 1.15rem; line-height: 1.15; margin: 0; overflow-wrap: anywhere; }
+.chead > div { min-width: 0; }
+.meta { margin: 2px 0 0; font-size: 0.8rem; color: var(--muted); }
+.none { margin: 0; padding: 4px 14px 12px; color: var(--muted); font-size: 0.9rem; }
+
+.tw { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; table-layout: fixed; font-variant-numeric: tabular-nums; }
+th { font-size: 0.66rem; font-weight: 600; color: var(--muted); text-align: right; padding: 6px 2px; border-top: 1px solid var(--line); }
+th.l { text-align: left; padding-left: 14px; }
+td { padding: 4px 2px; white-space: nowrap; border-top: 1px solid var(--line); text-align: right; font-size: 0.76rem; vertical-align: middle; }
+td.nm { text-align: left; padding-left: 14px; white-space: normal; }
+td.u { font-weight: 700; }
+td.x { padding: 0 6px 0 0; text-align: center; }
+col.c-n { width: 56px; }
+col.c-x { width: 32px; }
+.rowbtn { background: none; border: 0; padding: 8px 0; text-align: left; font-weight: 600; font-size: 0.84rem; line-height: 1.25; width: 100%; overflow-wrap: break-word; }
+.xbtn { width: 32px; height: 32px; border-radius: 8px; border: 0; background: transparent; color: var(--muted); font-size: 1.25rem; line-height: 1; }
+.xbtn:active { background: var(--surface2); }
+tr.tot td { background: var(--surface2); font-weight: 700; padding-block: 9px; }
+.addrow { display: block; width: 100%; border: 0; border-top: 1px solid var(--line); background: transparent; color: var(--accent); font-weight: 700; padding: 13px 14px; text-align: left; }
+
+.loose .row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; border-top: 1px solid var(--line); }
+.loose .row .t { min-width: 0; }
+.loose .row b { display: block; font-size: 0.92rem; overflow-wrap: anywhere; }
+.loose .row small { color: var(--muted); font-variant-numeric: tabular-nums; }
+
+.empty { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 22px 18px; display: flex; flex-direction: column; gap: 10px; }
+.empty h2 { font-family: var(--font-display); font-weight: 800; font-size: 1.3rem; line-height: 1.15; margin: 0; }
+.empty p { margin: 0; color: var(--muted); }
+.note { margin: 0; padding: 10px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface2); font-size: 0.85rem; color: var(--muted); }
+.foot { display: flex; justify-content: center; padding-top: 6px; }
+
+.scrim { position: fixed; inset: 0; background: var(--scrim); z-index: 20; }
+.sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 21;
+  margin: 0 auto;
+  max-width: 560px;
+  max-height: 92dvh;
+  overflow-y: auto;
+  background: var(--surface);
+  border-radius: 20px 20px 0 0;
+  padding-top: 16px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.sheet h3 { font-family: var(--font-display); font-weight: 800; font-size: 1.3rem; line-height: 1.1; margin: 0; }
+.field { display: flex; flex-direction: column; gap: 5px; }
+.field label { font-size: 0.8rem; font-weight: 600; color: var(--muted); }
+.field input, .field select {
+  font-size: 16px;
+  padding: 11px 12px;
+  min-height: 46px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg);
+  width: 100%;
+}
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.prev { margin: 0; padding: 10px 12px; border-radius: 12px; background: var(--surface2); font-size: 0.92rem; }
+.prev b { font-variant-numeric: tabular-nums; }
+.err { margin: 0; color: var(--bad); font-size: 0.85rem; font-weight: 600; }
+.hint { margin: 0; font-size: 0.78rem; color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chips p { width: 100%; margin: 0; font-size: 0.8rem; color: var(--muted); font-weight: 600; }
+.chip { border: 1px solid var(--line); background: var(--bg); border-radius: 999px; padding: 8px 12px; font-size: 0.85rem; font-weight: 600; }
+.row2 { display: flex; gap: 8px; flex-wrap: wrap; }
+.row2 .ghost { flex: 1 1 140px; min-height: 44px; }
+
+.toast {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  z-index: 30;
+  max-width: min(520px, calc(100% - 32px));
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--ink);
+  color: var(--bg);
+  padding: 11px 14px;
+  border-radius: 12px;
+  font-size: 0.9rem;
+}
+.toast button { background: none; border: 0; color: inherit; font-weight: 700; text-decoration: underline; padding: 4px; }
+
+.login { max-width: 400px; margin: 10vh auto 0; display: flex; flex-direction: column; gap: 14px; }
+.login .box { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 18px; display: flex; flex-direction: column; gap: 12px; }
+.login .ok { margin: 0; color: var(--accent); font-size: 0.85rem; font-weight: 600; }
+.foot { flex-direction: column; align-items: center; gap: 8px; }
+.foot .row2 { justify-content: center; }
+#boot { max-width: 560px; margin: 0 auto; }
+
+@media (min-width: 430px) {
+  col.c-n { width: 64px; }
+  td { font-size: 0.9rem; }
+}
+</style>
+</head>
+<body>
+
+<p class="note" id="boot">Un momento...</p>
+<section class="login" id="login" hidden>
+  <div>
+    <h1>Appalti pulizie</h1>
+    <p class="sub">Accedi per vedere condomini e conti.</p>
+  </div>
+  <form class="box" id="loginForm" novalidate>
+    <div class="field"><label for="l-email">Email</label><input id="l-email" type="email" autocomplete="username" inputmode="email" autocapitalize="none" spellcheck="false"></div>
+    <div class="field"><label for="l-pass">Password</label><input id="l-pass" type="password" autocomplete="current-password"></div>
+    <p id="login-err" class="err" role="alert"></p>
+    <button class="btn block" type="submit" id="loginBtn">Accedi</button>
+    <button class="ghost block" type="button" id="resetBtn">Password dimenticata?</button>
+  </form>
+</section>
+
+<main class="wrap" id="app" hidden>
+  <div class="top">
+    <div>
+      <h1>Appalti pulizie</h1>
+      <p class="sub">Importi mensili in euro. Utile = ricavo meno costo busta paga.</p>
+    </div>
+    <button class="btn" type="button" data-act="add-cleaner" id="addCleanerBtn">+ Pulitore</button>
+  </div>
+  <div id="root" class="wrap" style="gap:14px"></div>
+</main>
+<div id="sheetRoot"></div>
+<div id="toast" class="toast" hidden></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyAKfAf1nJbqLwFDXKUFDd5zXMNNtuhOMmw",
+  authDomain: "appalri-pulizie.firebaseapp.com",
+  projectId: "appalri-pulizie",
+  storageBucket: "appalri-pulizie.firebasestorage.app",
+  messagingSenderId: "271004282884",
+  appId: "1:271004282884:web:de1dcab69c2253527a0551"
+};
+
+(function () {
+  'use strict';
+  var root = document.getElementById('root');
+  var sheetRoot = document.getElementById('sheetRoot');
+  var toastEl = document.getElementById('toast');
+  var db = null, auth = null;
+  var state = { cleaners: [], condomini: [], c: false, k: false, slow: false, denied: false, local: false, wipeArm: false, user: '' };
+  var sheet = null;
+  var toastTimer = null;
+
+  var nf0 = new Intl.NumberFormat('it-IT', { maximumFractionDigits: 0 });
+  var nf2 = new Intl.NumberFormat('it-IT', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  function round2(n) { return Math.round(n * 100) / 100; }
+  function fmt(n) {
+    n = round2(n);
+    var a = Math.abs(n);
+    var s = Number.isInteger(a) ? nf0.format(a) : nf2.format(a);
+    return (n < 0 ? '−' : '') + s;
+  }
+  function eur(n) { return fmt(n) + ' €'; }
+  function esc(s) {
+    return String(s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function parseMoney(s) {
+    s = String(s || '').replace(/[€\s]/g, '');
+    if (s === '') return 0;
+    if (s.indexOf(',') > -1) s = s.replace(/\./g, '').replace(',', '.');
+    else if (/^\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g, '');
+    var n = Number(s);
+    if (!isFinite(n) || n < 0) return NaN;
+    return round2(n);
+  }
+  function toInput(n) { return n ? String(n).replace('.', ',') : ''; }
+  function newId() { return 'x' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
+  function byName(a, b) { return a.nome.localeCompare(b.nome, 'it'); }
+  function find(list, id) { for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i]; return null; }
+
+  /* ---------- Dati: db se disponibile, altrimenti solo in memoria ---------- */
+  function listFor(col) { return col === 'cleaners' ? state.cleaners : state.condomini; }
+  function put(col, id, data) {
+    if (db) return db.collection(col).doc(id).set(data);
+    var list = listFor(col), o = { id: id }, k;
+    for (k in data) o[k] = data[k];
+    var cur = find(list, id);
+    if (cur) list[list.indexOf(cur)] = o; else list.push(o);
+    render();
+    return Promise.resolve();
+  }
+  function patch(col, id, data) {
+    if (db) return db.collection(col).doc(id).update(data);
+    var cur = find(listFor(col), id), k;
+    if (cur) for (k in data) cur[k] = data[k];
+    render();
+    return Promise.resolve();
+  }
+  function del(col, id) {
+    if (db) return db.collection(col).doc(id).delete();
+    var list = listFor(col), cur = find(list, id);
+    if (cur) list.splice(list.indexOf(cur), 1);
+    render();
+    return Promise.resolve();
+  }
+  function guard(p) {
+    return p.catch(function () { showToast('Non sono riuscito a salvare. Riprova tra poco.'); return false; });
+  }
+
+  function mapCleaner(d) {
+    var o = d.data() || {};
+    return { id: d.id, nome: String(o.nome || ''), ordine: Number(o.ordine) || 0 };
+  }
+  function mapCondo(d) {
+    var o = d.data() || {};
+    var net = Number(o.stipendio) || 0;
+    return { id: d.id, nome: String(o.nome || ''), ricavo: Number(o.ricavo) || 0, stipendio: net, lordo: (o.lordo === undefined || o.lordo === null) ? net : (Number(o.lordo) || 0), cleanerId: String(o.cleanerId || '') };
+  }
+
+  /* ---------- Calcoli ---------- */
+  function sum(list) {
+    var r = 0, s = 0, l = 0;
+    list.forEach(function (k) { r += k.ricavo; s += k.stipendio; l += k.lordo; });
+    r = round2(r); s = round2(s); l = round2(l);
+    return { r: r, s: s, l: l, u: round2(r - l) };
+  }
+  function condoOf(cid) { return state.condomini.filter(function (k) { return k.cleanerId === cid; }).sort(byName); }
+  function unassigned() {
+    return state.condomini.filter(function (k) { return !k.cleanerId || !find(state.cleaners, k.cleanerId); }).sort(byName);
+  }
+  function negCls(n) { return n < 0 ? ' neg' : ''; }
+
+  /* ---------- Disegno ---------- */
+  function summaryHtml() {
+    var all = [];
+    state.cleaners.forEach(function (c) { all = all.concat(condoOf(c.id)); });
+    var t = sum(all);
+    return '<div class="summary" aria-label="Totali della ditta">' +
+      '<div class="stat"><span>Ricavo ditta</span><b>' + eur(t.r) + '</b></div>' +
+      '<div class="stat"><span>Costo busta paga (lordo)</span><b>' + eur(t.l) + '</b></div>' +
+      '<div class="stat"><span>Stipendi netti</span><b>' + eur(t.s) + '</b></div>' +
+      '<div class="stat main"><span>Utile ditta</span><b class="' + negCls(t.u).trim() + '">' + eur(t.u) + '</b></div>' +
+      '</div>';
+  }
+
+  function cleanerCard(c) {
+    var list = condoOf(c.id), t = sum(list);
+    var h = '<section class="card"><div class="chead"><div><h2>' + esc(c.nome) + '</h2><p class="meta">' +
+      list.length + (list.length === 1 ? ' condominio' : ' condomini') +
+      '</p></div><button class="ghost" type="button" data-act="edit-cleaner" data-id="' + esc(c.id) + '">Modifica</button></div>';
+    if (list.length) {
+      h += '<div class="tw"><table><colgroup><col><col class="c-n"><col class="c-n"><col class="c-n"><col class="c-n"><col class="c-x"></colgroup>' +
+        '<thead><tr><th class="l">Condominio</th><th>Ricavo</th><th>Netto</th><th>Lordo</th><th>Utile</th><th></th></tr></thead><tbody>';
+      list.forEach(function (k) {
+        var u = round2(k.ricavo - k.lordo);
+        h += '<tr><td class="nm"><button class="rowbtn" type="button" data-act="edit-condo" data-id="' + esc(k.id) + '">' + esc(k.nome) + '</button></td>' +
+          '<td>' + fmt(k.ricavo) + '</td><td>' + fmt(k.stipendio) + '</td><td>' + fmt(k.lordo) + '</td><td class="u' + negCls(u) + '">' + fmt(u) + '</td>' +
+          '<td class="x"><button class="xbtn" type="button" data-act="unassign" data-id="' + esc(k.id) + '" aria-label="Togli ' + esc(k.nome) + ' da ' + esc(c.nome) + '">×</button></td></tr>';
+      });
+      h += '<tr class="tot"><td class="nm">Totale</td><td>' + fmt(t.r) + '</td><td>' + fmt(t.s) + '</td><td>' + fmt(t.l) + '</td><td class="u' + negCls(t.u) + '">' + fmt(t.u) + '</td><td></td></tr>';
+      h += '</tbody></table></div>';
+    } else {
+      h += '<p class="none">Nessun condominio assegnato.</p>';
+    }
+    h += '<button class="addrow" type="button" data-act="add-condo" data-cleaner="' + esc(c.id) + '">+ Aggiungi condominio</button></section>';
+    return h;
+  }
+
+  function looseCard(list) {
+    var h = '<section class="card loose"><div class="chead"><div><h2>Non assegnati</h2><p class="meta">Senza pulitore, non inclusi nei totali</p></div></div>';
+    list.forEach(function (k) {
+      h += '<div class="row"><div class="t"><b>' + esc(k.nome) + '</b><small>Ricavo ' + fmt(k.ricavo) + ' · Netto ' + fmt(k.stipendio) + ' · Lordo ' + fmt(k.lordo) + ' €</small></div>' +
+        '<button class="ghost" type="button" data-act="edit-condo" data-id="' + esc(k.id) + '">Assegna</button></div>';
+    });
+    return h + '</section>';
+  }
+
+  function emptyHtml() {
+    return '<section class="empty"><h2>Inizia dal primo pulitore</h2>' +
+      '<p>Aggiungi i pulitori, poi assegna a ciascuno i condomini con ricavo, stipendio netto e costo busta paga. Utile e totali si calcolano da soli.</p>' +
+      '<button class="btn block" type="button" data-act="add-cleaner">Aggiungi un pulitore</button>' +
+      '<button class="ghost block" type="button" data-act="seed">Prova con dati di esempio</button></section>';
+  }
+
+  function render() {
+    if (!(state.c && state.k)) {
+      if (state.denied) {
+        root.innerHTML = '<p class="note">Questo accesso non è abilitato a vedere i dati. Chiedi di aggiungere la tua email alle regole di sicurezza.</p><div class="foot"><button class="ghost" type="button" data-act="logout">Esci</button></div>';
+      } else if (state.slow) {
+        root.innerHTML = '<p class="note">Non riesco a raggiungere i dati salvati. Controlla la connessione e riapri la pagina.</p><div class="foot"><button class="ghost" type="button" data-act="logout">Esci</button></div>';
+      } else {
+        root.innerHTML = '<p class="note">Carico i dati…</p>';
+      }
+      return;
+    }
+    var h = '';
+    if (state.local) h += '<p class="note">Il salvataggio non è attivo in questa vista: i dati restano solo finché la pagina è aperta.</p>';
+    if (!state.cleaners.length) {
+      h += emptyHtml();
+    } else {
+      h += summaryHtml();
+      state.cleaners.forEach(function (c) { h += cleanerCard(c); });
+    }
+    var un = unassigned();
+    if (un.length) h += looseCard(un);
+    h += '<div class="foot"><p class="hint">Collegato come ' + esc(state.user || '') + '</p><div class="row2"><button class="ghost" type="button" data-act="logout">Esci</button>';
+    if (state.cleaners.length || state.condomini.length) {
+      h += '<button class="ghost' + (state.wipeArm ? ' danger' : '') + '" type="button" data-act="wipe">' +
+        (state.wipeArm ? 'Tocca ancora per eliminare tutto' : 'Elimina tutti i dati') + '</button>';
+    }
+    h += '</div></div>';
+    root.innerHTML = h;
+  }
+
+  /* ---------- Avvisi ---------- */
+  function hideToast() { toastEl.hidden = true; toastEl.innerHTML = ''; }
+  function showToast(msg, label, fn) {
+    clearTimeout(toastTimer);
+    toastEl.innerHTML = '<span></span>';
+    toastEl.firstChild.textContent = msg;
+    if (label) {
+      var b = document.createElement('button');
+      b.type = 'button';
+      b.textContent = label;
+      b.addEventListener('click', function () { hideToast(); fn(); });
+      toastEl.appendChild(b);
+    }
+    toastEl.hidden = false;
+    toastTimer = setTimeout(hideToast, 6500);
+  }
+
+  /* ---------- Schede (fogli in basso) ---------- */
+  function openSheet(html) {
+    sheetRoot.innerHTML = '<div class="scrim" data-act="close"></div><form class="sheet" id="sheetForm" role="dialog" aria-modal="true" novalidate>' + html + '</form>';
+    document.body.classList.add('lock');
+    document.getElementById('sheetForm').addEventListener('submit', function (e) { e.preventDefault(); saveSheet(); });
+  }
+  function closeSheet() {
+    sheet = null;
+    sheetRoot.innerHTML = '';
+    document.body.classList.remove('lock');
+  }
+  function val(id) { var el = document.getElementById(id); return el ? el.value : ''; }
+  function setErr(msg) { var el = document.getElementById('f-err'); if (el) el.textContent = msg; }
+
+  function openCleaner(id) {
+    var c = id ? find(state.cleaners, id) : null;
+    sheet = { type: 'cleaner', id: c ? c.id : null, arm: false };
+    var h = '<h3>' + (c ? 'Modifica pulitore' : 'Nuovo pulitore') + '</h3>' +
+      '<div class="field"><label for="f-nome">Nome</label><input id="f-nome" type="text" autocomplete="off" value="' + esc(c ? c.nome : '') + '" placeholder="Es. Marco Rossi"></div>' +
+      '<p class="err" id="f-err" role="alert"></p>' +
+      '<button class="btn block" type="submit">Salva</button>';
+    if (c) h += '<button class="ghost danger block" type="button" data-act="del-cleaner">Elimina pulitore</button>';
+    h += '<button class="ghost block" type="button" data-act="close">Annulla</button>';
+    openSheet(h);
+    if (!c) document.getElementById('f-nome').focus();
+  }
+
+  function cleanerOptions(sel) {
+    var h = '<option value="">Non assegnato</option>';
+    state.cleaners.forEach(function (c) {
+      h += '<option value="' + esc(c.id) + '"' + (c.id === sel ? ' selected' : '') + '>' + esc(c.nome) + '</option>';
+    });
+    return h;
+  }
+
+  function openCondo(id, cleanerId) {
+    var k = id ? find(state.condomini, id) : null;
+    var sel = k ? (find(state.cleaners, k.cleanerId) ? k.cleanerId : '') : (cleanerId || '');
+    sheet = { type: 'condo', id: k ? k.id : null, arm: false };
+    var h = '<h3>' + (k ? 'Modifica condominio' : 'Nuovo condominio') + '</h3>';
+    var un = unassigned();
+    if (!k && cleanerId && un.length) {
+      h += '<div class="chips"><p>Assegna uno già inserito</p>';
+      un.forEach(function (u) { h += '<button class="chip" type="button" data-act="pick" data-id="' + esc(u.id) + '">' + esc(u.nome) + '</button>'; });
+      h += '</div>';
+    }
+    h += '<div class="field"><label for="f-nome">Condominio</label><input id="f-nome" type="text" autocomplete="off" value="' + esc(k ? k.nome : '') + '" placeholder="Es. Cond. Aurora, via Roma 12"></div>' +
+      '<div class="field"><label for="f-ric">Ricavo ditta € al mese</label><input id="f-ric" type="text" inputmode="decimal" autocomplete="off" value="' + esc(k ? toInput(k.ricavo) : '') + '" placeholder="0"></div>' +
+      '<div class="two"><div class="field"><label for="f-stip">Stipendio netto €</label><input id="f-stip" type="text" inputmode="decimal" autocomplete="off" value="' + esc(k ? toInput(k.stipendio) : '') + '" placeholder="0"></div>' +
+      '<div class="field"><label for="f-lordo">Costo busta paga €</label><input id="f-lordo" type="text" inputmode="decimal" autocomplete="off" value="' + esc(k ? toInput(k.lordo) : '') + '" placeholder="come il netto"></div></div>' +
+      '<p class="hint">Il costo busta paga è il lordo, cioè quanto costa il pulitore alla ditta. Se lo lasci vuoto uso il netto.</p>' +
+      '<div class="field"><label for="f-assign">Assegnato a</label><select id="f-assign">' + cleanerOptions(sel) + '</select></div>' +
+      '<p class="prev" id="f-prev"></p><p class="err" id="f-err" role="alert"></p>' +
+      '<button class="btn block" type="submit">Salva</button>';
+    if (k) {
+      h += '<div class="row2">';
+      if (sel) h += '<button class="ghost" type="button" data-act="unassign-sheet">Togli dal pulitore</button>';
+      h += '<button class="ghost danger" type="button" data-act="del-condo">Elimina condominio</button></div>';
+    }
+    h += '<button class="ghost block" type="button" data-act="close">Annulla</button>';
+    openSheet(h);
+    ['f-ric', 'f-stip', 'f-lordo'].forEach(function (i) { document.getElementById(i).addEventListener('input', updatePrev); });
+    updatePrev();
+    if (!k) document.getElementById('f-nome').focus();
+  }
+
+  function lordoVal(s) {
+    var raw = val('f-lordo').trim();
+    return raw === '' ? s : parseMoney(raw);
+  }
+  function updatePrev() {
+    var r = parseMoney(val('f-ric')), s = parseMoney(val('f-stip')), l = lordoVal(s);
+    var el = document.getElementById('f-prev');
+    if (!el) return;
+    if (isNaN(r) || isNaN(s) || isNaN(l)) { el.innerHTML = 'Utile su questo condominio: <b>–</b>'; return; }
+    el.innerHTML = 'Utile su questo condominio: <b class="' + negCls(r - l).trim() + '">' + eur(r - l) + '</b> al mese' +
+      (l < s ? '<br><small>Il lordo è più basso del netto: controlla gli importi.</small>' : '');
+  }
+
+  function saveSheet() {
+    if (!sheet) return;
+    var nome = val('f-nome').trim();
+    if (sheet.type === 'cleaner') {
+      if (!nome) { setErr('Scrivi il nome del pulitore.'); return; }
+      var p = sheet.id ? patch('cleaners', sheet.id, { nome: nome }) : put('cleaners', newId(), { nome: nome, ordine: Date.now() });
+      closeSheet();
+      guard(p);
+      return;
+    }
+    var r = parseMoney(val('f-ric')), s = parseMoney(val('f-stip')), l = lordoVal(s);
+    if (!nome) { setErr('Scrivi il nome del condominio.'); return; }
+    if (isNaN(r) || isNaN(s) || isNaN(l)) { setErr('Gli importi vanno scritti come numeri, per esempio 450 oppure 450,50.'); return; }
+    var data = { nome: nome, ricavo: r, stipendio: s, lordo: l, cleanerId: val('f-assign') };
+    var q = sheet.id ? patch('condomini', sheet.id, data) : put('condomini', newId(), data);
+    closeSheet();
+    guard(q);
+  }
+
+  /* ---------- Azioni ---------- */
+  function unassignWithUndo(id) {
+    var k = find(state.condomini, id);
+    if (!k || !k.cleanerId) return;
+    var prev = k.cleanerId, c = find(state.cleaners, prev);
+    guard(patch('condomini', id, { cleanerId: '' }));
+    showToast('Tolto da ' + (c ? c.nome : 'pulitore') + '.', 'Annulla', function () { guard(patch('condomini', id, { cleanerId: prev })); });
+  }
+
+  function seedExample() {
+    var cl = [['Marco (es.)', 1], ['Lucia (es.)', 2]];
+    var ids = [newId(), newId()];
+    var ks = [
+      ['Cond. Aurora (es.)', 700, 340, 480, 0], ['Cond. Bellavista (es.)', 520, 250, 350, 0], ['Cond. Colle Verde (es.)', 820, 400, 560, 0],
+      ['Cond. Dante (es.)', 600, 300, 420, 1], ['Cond. Europa (es.)', 420, 190, 270, 1], ['Cond. Fiori (es.)', 560, 260, 365, -1]
+    ];
+    var chain = Promise.resolve();
+    cl.forEach(function (c, i) { chain = chain.then(function () { return put('cleaners', ids[i], { nome: c[0], ordine: Date.now() + i }); }); });
+    ks.forEach(function (k) {
+      chain = chain.then(function () {
+        return put('condomini', newId(), { nome: k[0], ricavo: k[1], stipendio: k[2], lordo: k[3], cleanerId: k[4] >= 0 ? ids[k[4]] : '' });
+      });
+    });
+    guard(chain);
+  }
+
+  function wipeAll() {
+    var chain = Promise.resolve();
+    state.condomini.slice().forEach(function (k) { chain = chain.then(function () { return del('condomini', k.id); }); });
+    state.cleaners.slice().forEach(function (c) { chain = chain.then(function () { return del('cleaners', c.id); }); });
+    guard(chain);
+  }
+
+  function handle(act, el) {
+    var id = el.getAttribute('data-id');
+    if (act !== 'wipe' && state.wipeArm) { state.wipeArm = false; render(); }
+    switch (act) {
+      case 'add-cleaner': openCleaner(null); break;
+      case 'edit-cleaner': openCleaner(id); break;
+      case 'add-condo': openCondo(null, el.getAttribute('data-cleaner')); break;
+      case 'edit-condo': openCondo(id, null); break;
+      case 'unassign': unassignWithUndo(id); break;
+      case 'logout': if (auth) signOut(auth); break;
+      case 'close': closeSheet(); break;
+      case 'seed': seedExample(); break;
+      case 'wipe':
+        if (!state.wipeArm) { state.wipeArm = true; render(); setTimeout(function () { if (state.wipeArm) { state.wipeArm = false; render(); } }, 5000); }
+        else { state.wipeArm = false; render(); wipeAll(); }
+        break;
+      case 'pick':
+        var target = id, cid = null;
+        var cur = document.getElementById('f-assign');
+        cid = cur ? cur.value : '';
+        closeSheet();
+        guard(patch('condomini', target, { cleanerId: cid }));
+        break;
+      case 'unassign-sheet':
+        if (sheet && sheet.id) { var kid = sheet.id; closeSheet(); unassignWithUndo(kid); }
+        break;
+      case 'del-condo':
+        if (!sheet || !sheet.id) break;
+        if (!sheet.arm) { sheet.arm = true; el.textContent = 'Tocca ancora per eliminare'; break; }
+        var did = sheet.id; closeSheet(); guard(del('condomini', did));
+        break;
+      case 'del-cleaner':
+        if (!sheet || !sheet.id) break;
+        if (!sheet.arm) {
+          sheet.arm = true;
+          var n = condoOf(sheet.id).length;
+          el.textContent = n ? 'Tocca ancora: i suoi ' + n + ' condomini passano in Non assegnati' : 'Tocca ancora per eliminare';
+          break;
+        }
+        var cidDel = sheet.id;
+        var moved = condoOf(cidDel);
+        closeSheet();
+        var chain = Promise.resolve();
+        moved.forEach(function (k) { chain = chain.then(function () { return patch('condomini', k.id, { cleanerId: '' }); }); });
+        chain = chain.then(function () { return del('cleaners', cidDel); });
+        guard(chain);
+        break;
+    }
+  }
+
+  function onClick(e) {
+    var el = e.target.closest ? e.target.closest('[data-act]') : null;
+    if (!el) return;
+    handle(el.getAttribute('data-act'), el);
+  }
+  document.addEventListener('click', onClick);
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && sheet) closeSheet(); });
+
+  /* ---------- Accesso e avvio ---------- */
+  var bootEl = document.getElementById('boot');
+  var loginEl = document.getElementById('login');
+  var appEl = document.getElementById('app');
+  var loginForm = document.getElementById('loginForm');
+  var loginErr = document.getElementById('login-err');
+  var loginBtn = document.getElementById('loginBtn');
+  var unsubs = [];
+  var slowTimer = null;
+
+  function makeDb(fsdb) {
+    return {
+      collection: function (c) {
+        var cref = collection(fsdb, c);
+        return {
+          doc: function (id) {
+            var dref = doc(fsdb, c, id);
+            return {
+              set: function (d) { return setDoc(dref, d); },
+              update: function (d) { return updateDoc(dref, d); },
+              delete: function () { return deleteDoc(dref); }
+            };
+          },
+          onSnapshot: function (next, err) {
+            return onSnapshot(cref, function (snap) {
+              next({ docs: snap.docs.map(function (d) { return { id: d.id, data: function () { return d.data(); } }; }) });
+            }, err);
+          }
+        };
+      }
+    };
+  }
+
+  function setLoginMsg(msg, good) { loginErr.textContent = msg || ''; loginErr.className = good ? 'ok' : 'err'; }
+  function authMsg(err) {
+    var c = err && err.code;
+    if (c === 'auth/network-request-failed') return 'Nessuna connessione. Riprova.';
+    if (c === 'auth/too-many-requests') return 'Troppi tentativi. Riprova tra qualche minuto.';
+    if (c === 'auth/invalid-credential' || c === 'auth/wrong-password' || c === 'auth/user-not-found' || c === 'auth/invalid-email' || c === 'auth/missing-password') return 'Email o password non corrette.';
+    return 'Accesso non riuscito. Riprova.';
+  }
+  function showLogin() { bootEl.hidden = true; appEl.hidden = true; loginEl.hidden = false; closeSheet(); }
+  function showApp() { bootEl.hidden = true; loginEl.hidden = true; appEl.hidden = false; }
+
+  function stopData() {
+    unsubs.forEach(function (u) { try { u(); } catch (e) {} });
+    unsubs = [];
+    clearTimeout(slowTimer);
+    state.cleaners = []; state.condomini = [];
+    state.c = false; state.k = false; state.slow = false; state.denied = false; state.wipeArm = false;
+  }
+
+  function startData() {
+    stopData();
+    render();
+    slowTimer = setTimeout(function () { if (!(state.c && state.k)) { state.slow = true; render(); } }, 10000);
+    function fail(err) {
+      if (err && err.code === 'permission-denied') state.denied = true; else state.slow = true;
+      render();
+    }
+    function done() { if (state.c && state.k) clearTimeout(slowTimer); }
+    unsubs.push(db.collection('cleaners').onSnapshot(function (snap) {
+      state.cleaners = snap.docs.map(mapCleaner).sort(function (a, b) { return a.ordine - b.ordine; });
+      state.c = true; done(); render();
+    }, fail));
+    unsubs.push(db.collection('condomini').onSnapshot(function (snap) {
+      state.condomini = snap.docs.map(mapCondo);
+      state.k = true; done(); render();
+    }, fail));
+  }
+
+  var cfg = firebaseConfig;
+  if (!cfg || !cfg.apiKey || String(cfg.apiKey).indexOf('INSERISCI') === 0) {
+    showLogin();
+    setLoginMsg('Configurazione di Firebase mancante.');
+    loginBtn.disabled = true;
+  } else {
+    var fapp = initializeApp(cfg);
+    auth = getAuth(fapp);
+    var fsdb;
+    try {
+      fsdb = initializeFirestore(fapp, { localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }) });
+    } catch (e) {
+      fsdb = getFirestore(fapp);
+    }
+    db = makeDb(fsdb);
+
+    loginForm.addEventListener('submit', function (e) {
+      e.preventDefault();
+      var em = document.getElementById('l-email').value.trim().toLowerCase();
+      var pw = document.getElementById('l-pass').value;
+      if (!em || !pw) { setLoginMsg('Scrivi email e password.'); return; }
+      loginBtn.disabled = true;
+      setLoginMsg('');
+      signInWithEmailAndPassword(auth, em, pw).catch(function (err) {
+        setLoginMsg(authMsg(err));
+      }).then(function () { loginBtn.disabled = false; });
+    });
+    document.getElementById('resetBtn').addEventListener('click', function () {
+      var em = document.getElementById('l-email').value.trim().toLowerCase();
+      if (!em) { setLoginMsg('Scrivi la tua email, poi tocca di nuovo.'); return; }
+      sendPasswordResetEmail(auth, em).then(function () {
+        setLoginMsg('Se l’email è abilitata, ti arriva un messaggio per scegliere una nuova password.', true);
+      }, function (err) { setLoginMsg(authMsg(err)); });
+    });
+
+    onAuthStateChanged(auth, function (user) {
+      if (user) {
+        state.user = user.email || '';
+        showApp();
+        startData();
+      } else {
+        stopData();
+        state.user = '';
+        document.getElementById('l-pass').value = '';
+        showLogin();
+      }
+    });
+  }
+})();
+</script>
+<script>
+if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)) {
+  window.addEventListener("load", function () { navigator.serviceWorker.register("sw.js").catch(function () {}); });
+}
+</script>
+</body>
+</html>
