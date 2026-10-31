@@ -644,6 +644,8 @@ const firebaseConfig = {
     if (sheet.type === 'squad') { saveSquad(); return; }
     if (sheet.type === 'sqscale') { saveSqScale(); return; }
     if (sheet.type === 'jolly') { saveJolly(); return; }
+    if (sheet.type === 'dett') { saveDett(); return; }
+    if (sheet.type === 'pimport') { if (sheet.stage === 1) readPImport(); else applyPImport(); return; }
     if (sheet.type !== 'condo' && sheet.type !== 'cleaner') return;
     var nome = val('f-nome').trim();
     if (sheet.type === 'cleaner') {
@@ -1208,6 +1210,7 @@ const firebaseConfig = {
   function giorniText(a) { return a.slice().sort().map(function (n) { return DOWS[n - 1]; }).join(' · '); }
   function cname(id) { var c = find(state.cleaners, id); return c ? c.nome : ''; }
   function arr(v) { return Array.isArray(v) ? v.map(String) : []; }
+  function dmap(v) { var r = {}; if (v && typeof v === 'object') Object.keys(v).forEach(function (k) { if (v[k]) r[k] = String(v[k]); }); return r; }
 
   function mapAssenza(d) {
     var o = d.data() || {};
@@ -1218,16 +1221,16 @@ const firebaseConfig = {
     var sq = Array.isArray(o.squadre) ? o.squadre : [];
     return {
       id: d.id,
-      squadre: sq.map(function (s) { s = s || {}; return { id: String(s.id || ''), membri: arr(s.membri), appalti: arr(s.appalti) }; }),
-      extra: arr(o.extra), saltati: arr(o.saltati)
+      squadre: sq.map(function (s) { s = s || {}; return { id: String(s.id || ''), membri: arr(s.membri), appalti: arr(s.appalti), nota: String(s.nota || '') }; }),
+      extra: arr(o.extra), saltati: arr(o.saltati), dett: dmap(o.dett)
     };
   }
-  function dayDoc(ds) { return find(state.programma, ds) || { id: ds, squadre: [], extra: [], saltati: [] }; }
+  function dayDoc(ds) { return find(state.programma, ds) || { id: ds, squadre: [], extra: [], saltati: [], dett: {} }; }
   function cloneDay(ds) {
     var p = dayDoc(ds);
     return {
-      squadre: p.squadre.map(function (s) { return { id: s.id, membri: s.membri.slice(), appalti: s.appalti.slice() }; }),
-      extra: p.extra.slice(), saltati: p.saltati.slice()
+      squadre: p.squadre.map(function (s) { return { id: s.id, membri: s.membri.slice(), appalti: s.appalti.slice(), nota: s.nota || '' }; }),
+      extra: p.extra.slice(), saltati: p.saltati.slice(), dett: dmap(p.dett)
     };
   }
   function absenceOf(cid, ds) {
@@ -1317,14 +1320,17 @@ const firebaseConfig = {
     info.day.squadre.forEach(function (s, si) {
       var nm = s.membri.map(cname).filter(Boolean);
       h += '<div class="sq"><div class="sqh"><b>Squadra ' + (si + 1) + '</b><button class="ghost" type="button" data-act="edit-sq" data-id="' + esc(s.id) + '">Persone</button></div>';
+      if (s.nota) h += '<p class="meta" style="padding:0 14px 6px">' + esc(s.nota) + '</p>';
       h += nm.length ? '<div class="mem">' + nm.map(function (n) { return '<span>' + esc(n) + '</span>'; }).join('') + '</div>' : '<p class="err" style="padding:0 14px 6px">Nessuna persona: tocca Persone.</p>';
       s.appalti.forEach(function (kid) {
         var k = find(state.condomini, kid);
         if (!k) return;
-        h += '<div class="srow"><div class="t"><b>' + esc(k.nome) + '</b></div><button class="xbtn" type="button" data-act="sq-remove" data-id="' + esc(kid) + '" data-sq="' + esc(s.id) + '" aria-label="Togli ' + esc(k.nome) + ' dalla squadra">×</button></div>';
+        var dt = info.day.dett[kid];
+        h += '<div class="srow"><div class="t" data-act="edit-dett" data-id="' + esc(kid) + '" style="cursor:pointer"><b>' + esc(k.nome) + '</b><small>' + (dt ? esc(dt) : 'Tocca per scrivere cosa fare') + '</small></div><button class="xbtn" type="button" data-act="sq-remove" data-id="' + esc(kid) + '" data-sq="' + esc(s.id) + '" aria-label="Togli ' + esc(k.nome) + ' dalla squadra">×</button></div>';
       });
       h += '<button class="addrow" type="button" data-act="sq-add" data-id="' + esc(s.id) + '">+ Aggiungi scale</button></div>';
     });
+    if (!info.day.squadre.length && dayDoc(addDays(ds, -7)).squadre.length) h += '<button class="addrow" type="button" data-act="copy-day">Copia le squadre di 7 giorni fa</button>';
     h += '<button class="addrow" type="button" data-act="new-sq">+ Nuova squadra</button></section>';
 
     // Tutti gli appalti del giorno
@@ -1337,7 +1343,8 @@ const firebaseConfig = {
     h += '<button class="addrow" type="button" data-act="extra">+ Aggiungi un appalto fuori programma</button></details>';
 
     h += '<div class="tools"><button class="ghost" type="button" data-act="prog-pdf">PDF del giorno</button><button class="ghost" type="button" data-act="prog-text">Invia testo</button>' +
-      '<button class="ghost" type="button" data-act="jolly">Gestisci jolly</button><button class="ghost" type="button" data-act="days" data-only="0">Giorni degli appalti</button></div>';
+      '<button class="ghost" type="button" data-act="jolly">Gestisci jolly</button><button class="ghost" type="button" data-act="days" data-only="0">Giorni degli appalti</button>' +
+      '<button class="ghost" type="button" data-act="pimport">Incolla programma</button><button class="ghost" type="button" data-act="copy-week">Copia settimana scorsa</button></div>';
     return h;
   }
 
@@ -1423,6 +1430,7 @@ const firebaseConfig = {
     if (jl.length) h += '<div>' + rows(jl) + '</div>';
     if (ot.length) h += '<details class="imp"' + (otOpen ? ' open' : '') + '><summary><span>Altri pulitori</span><small>' + ot.length + '</small></summary><div style="padding:6px 12px">' + rows(ot) + '</div></details>';
     if (!jl.length && !ot.length) h += '<p class="none" style="padding:0">Nessuno disponibile in questo giorno.</p>';
+    h += '<div class="field"><label for="f-nota">Nota della squadra (orario, spostamenti)</label><input id="f-nota" type="text" autocomplete="off" value="' + esc(s ? s.nota || '' : '') + '" placeholder="Es. dalle 9 / dopo Padel va a Parco Tirreno"></div>';
     h += '<p class="err" id="f-err" role="alert"></p><button class="btn block" type="submit">Salva squadra</button>';
     if (s) h += '<button class="ghost danger block" type="button" data-act="del-sq">Elimina squadra</button>';
     h += '<button class="ghost block" type="button" data-act="close">Annulla</button>';
@@ -1442,8 +1450,9 @@ const firebaseConfig = {
     if (!ids.length) { setErr('Scegli almeno una persona.'); return; }
     var ds = state.date, d = cloneDay(ds), s = null, i;
     if (sheet.id) for (i = 0; i < d.squadre.length; i++) if (d.squadre[i].id === sheet.id) s = d.squadre[i];
-    if (!s) { s = { id: newId(), membri: [], appalti: [] }; d.squadre.push(s); }
+    if (!s) { s = { id: newId(), membri: [], appalti: [], nota: '' }; d.squadre.push(s); }
     s.membri = ids;
+    s.nota = val('f-nota').replace(/\s+/g, ' ').trim();
     if (sheet.pending) moveScala(d, sheet.pending, s);
     closeSheet();
     guard(put('programma', ds, d));
@@ -1553,12 +1562,13 @@ const firebaseConfig = {
   function removeFromSquads(kid, sqid) {
     var ds = state.date, d = cloneDay(ds);
     d.squadre.forEach(function (x) { if (!sqid || x.id === sqid) { var i = x.appalti.indexOf(kid); if (i > -1) x.appalti.splice(i, 1); } });
+    pruneDett(d);
     guard(put('programma', ds, d));
   }
   function toggleSkip(kid) {
     var ds = state.date, d = cloneDay(ds), i = d.saltati.indexOf(kid);
     if (i > -1) d.saltati.splice(i, 1);
-    else { d.saltati.push(kid); d.squadre.forEach(function (x) { var j = x.appalti.indexOf(kid); if (j > -1) x.appalti.splice(j, 1); }); }
+    else { d.saltati.push(kid); d.squadre.forEach(function (x) { var j = x.appalti.indexOf(kid); if (j > -1) x.appalti.splice(j, 1); }); pruneDett(d); }
     guard(put('programma', ds, d));
   }
 
@@ -1567,8 +1577,8 @@ const firebaseConfig = {
     var info = dayInfo(ds), squads = [];
     info.day.squadre.forEach(function (s, i) {
       squads.push({
-        n: i + 1, nomi: s.membri.map(cname).filter(Boolean),
-        scale: s.appalti.map(function (id) { var k = find(state.condomini, id); return k ? k.nome : ''; }).filter(Boolean)
+        n: i + 1, nomi: s.membri.map(cname).filter(Boolean), nota: s.nota || '',
+        scale: s.appalti.map(function (id) { var k = find(state.condomini, id); return k ? { nome: k.nome, dett: info.day.dett[id] || '' } : null; }).filter(Boolean)
       });
     });
     return {
@@ -1581,8 +1591,8 @@ const firebaseConfig = {
   function dayText(ds) {
     var D = dayData(ds), L = ['Programma ' + longDate(ds), ''];
     D.squads.forEach(function (s) {
-      L.push('Squadra ' + s.n + ': ' + (s.nomi.length ? s.nomi.join(', ') : '(nessuno)'));
-      s.scale.forEach(function (x) { L.push('- ' + x); });
+      L.push((s.nomi.length ? s.nomi.join('/') : 'Squadra ' + s.n) + (s.nota ? ' - ' + s.nota : ''));
+      s.scale.forEach(function (x) { L.push(x.nome + (x.dett ? ': ' + x.dett : '')); });
       L.push('');
     });
     if (D.open.length) { L.push('Ancora da assegnare:'); D.open.forEach(function (x) { L.push('- ' + x.nome); }); L.push(''); }
@@ -1607,12 +1617,12 @@ const firebaseConfig = {
       if (right) doc.text(PW - PM - 8, y + 15, right, { s: 9, c: WHITE, a: 'r' });
       y += 22;
     }
-    function item(txt, sub, col) {
-      var lines = wrapText(txt, false, 10, CW - 30), h = lines.length * 13 + 9 + (sub ? 11 : 0);
+    function item(txt, sub, col, subCol) {
+      var sl = sub ? wrapText(sub, false, 9, CW - 30) : [], lines = wrapText(txt, true, 10, CW - 30), h = lines.length * 13 + 9 + sl.length * 11.5;
       room(h);
       doc.rect(PM + 8, y + 6, 4, 4, col || ACC);
-      lines.forEach(function (ln, i) { doc.text(PM + 20, y + 13 + i * 13, ln, { s: 10 }); });
-      if (sub) doc.text(PM + 20, y + 11 + lines.length * 13, sub, { s: 8.5, c: MUTED });
+      lines.forEach(function (ln, i) { doc.text(PM + 20, y + 13 + i * 13, ln, { b: 1, s: 10 }); });
+      sl.forEach(function (ln, i) { doc.text(PM + 20, y + 11 + lines.length * 13 + i * 11.5, ln, { s: 9, c: subCol || MUTED }); });
       doc.line(PM, y + h, PM + CW, LINE, 0.4);
       y += h;
     }
@@ -1624,13 +1634,13 @@ const firebaseConfig = {
     y += 26;
     D.squads.forEach(function (s) {
       head('Squadra ' + s.n, s.scale.length + (s.scale.length === 1 ? ' scala' : ' scale'));
-      var lines = wrapText('Persone: ' + (s.nomi.length ? s.nomi.join(', ') : 'nessuna'), true, 10, CW - 16), h = lines.length * 13 + 10;
+      var lines = wrapText('Persone: ' + (s.nomi.length ? s.nomi.join(', ') : 'nessuna') + (s.nota ? ' - ' + s.nota : ''), true, 10, CW - 16), h = lines.length * 13 + 10;
       room(h);
       doc.rect(PM, y, CW, h, SOFT);
       lines.forEach(function (ln, i) { doc.text(PM + 8, y + 14 + i * 13, ln, { b: 1, s: 10 }); });
       y += h;
       if (!s.scale.length) item('Nessuna scala assegnata', '', MUTED);
-      s.scale.forEach(function (x) { item(x); });
+      s.scale.forEach(function (x) { item(x.nome, x.dett, null, INK); });
       y += 14;
     });
     if (D.open.length) {
@@ -1672,6 +1682,309 @@ const firebaseConfig = {
       return;
     }
     copyText(txt);
+  }
+
+  /* ---------- Programma: cosa fare, copia e importazione dal testo ---------- */
+  function pruneDett(d) {
+    var inSq = {};
+    d.squadre.forEach(function (s) { s.appalti.forEach(function (a) { inSq[a] = 1; }); });
+    Object.keys(d.dett).forEach(function (k) { if (!inSq[k]) delete d.dett[k]; });
+  }
+
+  function openDett(kid) {
+    var k = find(state.condomini, kid);
+    if (!k) return;
+    var cur = dayDoc(state.date).dett[kid] || '';
+    sheet = { type: 'dett', id: kid };
+    var h = '<h3>Cosa fare</h3><p class="hint">' + esc(k.nome) + ' · ' + esc(longDate(state.date)) + '</p>' +
+      '<div class="field"><label for="f-dett">Istruzioni per la squadra</label><input id="f-dett" type="text" autocomplete="off" value="' + esc(cur) + '" placeholder="Es. lav + box FOTO"></div><div class="chips">';
+    ['lav', 'rip', 'box', 'esterno', 'deragnatura', 'FOTO'].forEach(function (w) {
+      h += '<button type="button" class="chip" data-act="dett-chip" data-w="' + w + '">' + w + '</button>';
+    });
+    h += '</div><button class="btn block" type="submit">Salva</button><button class="ghost block" type="button" data-act="close">Annulla</button>';
+    openSheet(h);
+  }
+  function addDettWord(w) {
+    var el = document.getElementById('f-dett');
+    if (!el) return;
+    var t = el.value.trim();
+    el.value = !t ? w : (w === 'FOTO' ? t + ' FOTO' : t + ' + ' + w);
+  }
+  function saveDett() {
+    var ds = state.date, d = cloneDay(ds), t = val('f-dett').replace(/\s+/g, ' ').trim();
+    if (t) d.dett[sheet.id] = t; else delete d.dett[sheet.id];
+    closeSheet();
+    guard(put('programma', ds, d));
+  }
+
+  function copyDayDoc(from, to) {
+    var src = cloneDay(from), wd = isoDow(to), busy = {}, out = { squadre: [], extra: [], saltati: [], dett: {} };
+    src.squadre.forEach(function (s) {
+      var mem = s.membri.filter(function (m) { return find(state.cleaners, m) && !absenceOf(m, to) && !busy[m]; });
+      mem.forEach(function (m) { busy[m] = 1; });
+      var ap = s.appalti.filter(function (a) { return find(state.condomini, a); });
+      out.squadre.push({ id: newId(), membri: mem, appalti: ap, nota: s.nota || '' });
+      ap.forEach(function (a) {
+        if (src.dett[a]) out.dett[a] = src.dett[a];
+        var k = find(state.condomini, a);
+        if (k.giorni.indexOf(wd) < 0 && out.extra.indexOf(a) < 0) out.extra.push(a);
+      });
+    });
+    return out;
+  }
+  function copyWeek() {
+    var ws = weekStart(state.date), chain = Promise.resolve(), n = 0, i;
+    for (i = 0; i < 7; i++) {
+      (function (ds) {
+        var prev = addDays(ds, -7);
+        if (dayDoc(ds).squadre.length || !dayDoc(prev).squadre.length) return;
+        n++;
+        chain = chain.then(function () { return put('programma', ds, copyDayDoc(prev, ds)); });
+      })(addDays(ws, i));
+    }
+    guard(chain);
+    showToast(n ? 'Copiati ' + n + (n === 1 ? ' giorno' : ' giorni') + ' dalla settimana scorsa.' : 'Niente da copiare: i giorni sono già compilati o la settimana scorsa è vuota.', null, null, 5000);
+  }
+
+  /* --- lettura del testo del programma --- */
+  var NSTOP = { via: 1, viale: 1, piazza: 1, piazzale: 1, corso: 1, largo: 1, p: 1, zza: 1, cond: 1, condominio: 1, residence: 1, residenza: 1, uff: 1, ufficio: 1, di: 1, del: 1, della: 1, dei: 1, de: 1, da: 1, e: 1, a: 1, il: 1, lo: 1, la: 1, le: 1, al: 1, ai: 1, n: 1, app: 1 };
+  var WSTOP = { lav: 1, lavaggio: 1, lavare: 1, rip: 1, ripasso: 1, box: 1, esterno: 1, esterni: 1, spazzare: 1, spazzate: 1, spolvero: 1, spolverare: 1, aspirare: 1, deragnatura: 1, deragnare: 1, androni: 1, androne: 1, foto: 1, ore: 1, ogni: 1, mi: 1, bene: 1, att: 1, attenzione: 1, sc: 1, scala: 1, scale: 1, con: 1, dalle: 1, per: 1, no: 1 };
+  var WDAYS = ['lunedi', 'martedi', 'mercoledi', 'giovedi', 'venerdi', 'sabato', 'domenica'];
+
+  function wtoks(s) { return norm(s).replace(/[^a-z0-9 ]/g, ' ').split(' ').filter(Boolean); }
+  function lev(a, b) {
+    var m = a.length, n = b.length, i, j, p = [], c;
+    for (j = 0; j <= n; j++) p[j] = j;
+    for (i = 1; i <= m; i++) {
+      c = [i];
+      for (j = 1; j <= n; j++) c[j] = Math.min(p[j] + 1, c[j - 1] + 1, p[j - 1] + (a.charAt(i - 1) === b.charAt(j - 1) ? 0 : 1));
+      p = c;
+    }
+    return p[n];
+  }
+  function teq(a, b) {
+    if (a === b) return true;
+    if (/\d/.test(a) || /\d/.test(b)) return false;
+    if (a.length >= 4 && b.length >= 4 && (a.indexOf(b) === 0 || b.indexOf(a) === 0)) return true;
+    var l = Math.max(a.length, b.length);
+    return l >= 5 && lev(a, b) <= (l >= 8 ? 2 : 1);
+  }
+  function keyToks(s) {
+    var t = wtoks(s), k = t.filter(function (x) { return !NSTOP[x]; });
+    return k.length ? k : t;
+  }
+  // Cerca l'appalto che corrisponde a un nome scritto in fretta (nome abbreviato o con refusi)
+  function matchAppalto(name) {
+    var N = keyToks(name), best = [], bs = -1e9;
+    if (!N.length) return { id: '', amb: false };
+    state.condomini.forEach(function (k) {
+      var K = keyToks(k.nome);
+      var ok = N.every(function (n) { return K.some(function (x) { return teq(n, x); }); });
+      if (!ok) return;
+      var sc = N.length * 10 - Math.abs(K.length - N.length);
+      if (sc > bs) { bs = sc; best = [k]; } else if (sc === bs) best.push(k);
+    });
+    return best.length ? { id: best[0].id, amb: best.length > 1 } : { id: '', amb: false };
+  }
+  function splitRow(line) {
+    var words = line.trim().split(/\s+/), i, cut = words.length;
+    for (i = 1; i < words.length; i++) {
+      var w = words[i], nw = norm(w).replace(/[^a-z0-9+]/g, '');
+      if (w.charAt(0) === '(' || w === '+' || w === '-' || w === '–' || w === '—' || /^(lav|rip)([^a-z]|$)/.test(nw) || WSTOP[nw.replace(/\+$/, '')]) { cut = i; break; }
+    }
+    return { name: words.slice(0, cut).join(' ').replace(/[\s,:;.-]+$/, ''), dett: words.slice(cut).join(' ').replace(/^[+\s-]+/, '').trim() };
+  }
+  function firstNames() {
+    var m = {};
+    state.cleaners.forEach(function (c) { var f = norm(c.nome).split(' ')[0]; if (f) m[f] = c; });
+    return m;
+  }
+  function squadLine(line, fn) {
+    var t = line.trim();
+    if (!t) return null;
+    var parts = t.split('/');
+    var alpha = /^[A-Za-zÀ-ÿ'’]{2,14}$/;
+    if (parts.length < 2) {
+      return (alpha.test(t) && fn[norm(t)]) ? { people: [t], nota: '' } : null;
+    }
+    var i, people = [], nota = '', known = false, single = true;
+    for (i = 0; i < parts.length; i++) {
+      var p = parts[i].trim(), w = p.split(/\s+/);
+      if (!alpha.test(w[0])) return null;
+      if (i < parts.length - 1 && w.length > 1) return null;
+      if (w.length > 1) { single = false; nota = w.slice(1).join(' '); }
+      people.push(w[0]);
+      if (fn[norm(w[0])] || norm(w[0]) === 'io') known = true;
+    }
+    if (!known && nota && (/[\d()]/.test(nota) || nota.length > 60)) return null;
+    if (t.length > 90) return null;
+    return { people: people, nota: nota };
+  }
+  function parseProgram(text, startDow) {
+    var fn = firstNames(), lines = String(text || '').split(/\r?\n/), days = {}, cur = startDow, sq = null, lastRow = null, haveTs = false;
+    var reA = /^\[\d{1,2}\/\d{1,2}(?:\/\d{2,4})?,?\s+\d{1,2}:\d{2}(?::\d{2})?\]\s*[^:]+:\s?(.*)$/;
+    var reB = /^\d{1,2}\/\d{1,2}\/\d{2,4},?\s+\d{1,2}:\d{2}(?::\d{2})?\s+-\s+[^:]+:\s?(.*)$/;
+    function day(wd) { return days[wd] || (days[wd] = { wd: wd, squads: [] }); }
+    var started = false, skip = false;
+    lines.forEach(function (raw) {
+      var line = raw, msg = false, m = reA.exec(raw) || reB.exec(raw);
+      if (m) { line = m[1]; msg = true; haveTs = true; skip = false; }
+      line = line.replace(/\s+$/, '');
+      if (!line.trim() || skip) return;
+      var n = norm(line).split(' ')[0].replace(/[^a-z]/g, ''), wi = WDAYS.indexOf(n);
+      if (wi > -1 && line.trim().length < 40) { cur = wi + 1; sq = null; lastRow = null; started = true; return; }
+      var sl = squadLine(line, fn);
+      if (sl) {
+        if (msg && started && days[cur] && days[cur].squads.length) cur = cur % 7 + 1;
+        started = true;
+        var dd = day(cur);
+        sq = { people: sl.people, nota: sl.nota, rows: [] };
+        dd.squads.push(sq);
+        lastRow = null;
+        return;
+      }
+      if (msg) { skip = true; return; }
+      if (!sq) return;
+      var sp = splitRow(line), mt = matchAppalto(sp.name);
+      var letters = line.replace(/[^A-Za-zÀ-ÿ]/g, ''), lower = letters.replace(/[^a-zà-ÿ]/g, '');
+      var cont = !mt.id && lastRow && letters.length && !lower.length;
+      if (cont) { lastRow.dett = (lastRow.dett ? lastRow.dett + ' ' : '') + line.trim(); return; }
+      lastRow = { name: sp.name || line.trim(), dett: sp.dett, id: mt.id, amb: mt.amb };
+      sq.rows.push(lastRow);
+    });
+    return days;
+  }
+
+  function openPImport(stage) {
+    var h = '';
+    if (stage === 1) {
+      sheet = { type: 'pimport', stage: 1 };
+      h = '<h3>Incolla programma</h3><p class="hint">Incolla il testo del Note con le squadre. Si legge solo sul telefono e prima di salvare vedi un’anteprima.</p>' +
+        '<div class="field"><label for="f-ptxt">Testo</label><textarea id="f-ptxt" rows="9" placeholder="Maria/Onis&#10;Albertazzi rip + box&#10;..."></textarea></div>' +
+        '<div class="two"><div class="field"><label for="f-pwk">Settimana dal lunedì</label><input id="f-pwk" type="date" value="' + weekStart(state.date) + '"></div>' +
+        '<div class="field"><label for="f-pst">Il testo inizia da</label><select id="f-pst">' + DOWL.map(function (n, i) { return '<option value="' + (i + 1) + '">' + cap(n) + '</option>'; }).join('') + '</select></div></div>' +
+        '<p class="hint">I giorni si riconoscono dai titoli (Lunedì, Martedì…). Se un titolo manca, il giorno è quello dopo il precedente.</p>' +
+        '<p class="err" id="f-err" role="alert"></p><button class="btn block" type="submit">Leggi il testo</button><button class="ghost block" type="button" data-act="close">Annulla</button>';
+      openSheet(h);
+      return;
+    }
+    var P = sheet.parsed, wk = sheet.week, wds = Object.keys(P).map(Number).sort(), fn = firstNames(), seenP = {}, people = [];
+    wds.forEach(function (wd) { P[wd].squads.forEach(function (s) { s.people.forEach(function (n) { if (!fn[norm(n)] && !seenP[norm(n)]) { seenP[norm(n)] = 1; people.push(n); } }); }); });
+    var all = state.condomini.slice().sort(byName);
+    function appOpts(sel, newName) {
+      var o = '<option value="new"' + (sel === 'new' ? ' selected' : '') + '>Crea nuovo: ' + esc(newName) + '</option><option value="cont"' + (sel === 'cont' ? ' selected' : '') + '>Unisci alla riga sopra</option><option value="skip"' + (sel === 'skip' ? ' selected' : '') + '>Salta</option>';
+      all.forEach(function (k) { o += '<option value="' + esc(k.id) + '"' + (sel === k.id ? ' selected' : '') + '>' + esc(k.nome) + '</option>'; });
+      return o;
+    }
+    h = '<h3>Anteprima programma</h3><p class="hint">Controlla gli abbinamenti. I punti rossi sono da guardare.</p>';
+    if (!wds.length) h += '<p class="err">Non ho trovato squadre nel testo. Controlla che i nomi siano separati da "/".</p>';
+    if (people.length) {
+      h += '<div class="card" style="padding:4px 12px 10px"><p class="hint" style="padding-top:8px"><b>Persone non presenti nell’app</b></p>';
+      people.forEach(function (n) {
+        h += '<div class="irow" style="padding-inline:0"><div class="in">' + esc(n) + '</div><select data-pm="' + esc(n) + '" style="max-width:55%"><option value="jolly"' + (norm(n) === 'io' ? '' : ' selected') + '>Crea come jolly</option><option value="cleaner">Crea come pulitore</option><option value="skip"' + (norm(n) === 'io' ? ' selected' : '') + '>Ignora</option>' +
+          state.cleaners.map(function (c) { return '<option value="' + esc(c.id) + '">' + esc(c.nome) + '</option>'; }).join('') + '</select></div>';
+      });
+      h += '</div>';
+    }
+    wds.forEach(function (wd) {
+      var ds = addDays(wk, wd - 1);
+      h += '<h2 class="dh" style="font-size:1.05rem">' + esc(cap(longDate(ds))) + '</h2>';
+      P[wd].squads.forEach(function (s, si) {
+        h += '<div class="card"><div class="sqh"><b>' + esc(s.people.join(' / ')) + '</b></div>' + (s.nota ? '<p class="meta" style="padding:0 14px 6px">' + esc(s.nota) + '</p>' : '');
+        s.rows.forEach(function (r, ri) {
+          var sel = r.id || (r.cont ? 'cont' : 'new');
+          h += '<div class="irow" style="flex-wrap:wrap"><div class="in"><b>' + esc(r.name) + '</b>' + (r.dett ? '<span class="tag">' + esc(r.dett) + '</span>' : '') + '</div>' +
+            '<select data-r="' + wd + '-' + si + '-' + ri + '" style="width:100%;font-size:14px;padding:8px;border:1px solid ' + (r.id && !r.amb ? 'var(--line)' : 'var(--bad)') + ';border-radius:10px;background:var(--bg)">' + appOpts(sel, r.name) + '</select></div>';
+        });
+        h += '</div>';
+      });
+    });
+    h += '<label class="opt"><input type="checkbox" id="f-pgg" checked><span>Aggiungi questi giorni agli appalti (così compaiono nel calendario)</span></label>' +
+      '<p class="hint">I giorni già compilati in questa settimana vengono sostituiti.</p><p class="err" id="f-err" role="alert"></p>' +
+      '<button class="btn block" type="submit"' + (wds.length ? '' : ' disabled') + '>Importa</button><button class="ghost block" type="button" data-act="pi-back">Indietro</button><button class="ghost block" type="button" data-act="close">Annulla</button>';
+    openSheet(h);
+  }
+  function readPImport() {
+    var wk = val('f-pwk'), txt = val('f-ptxt');
+    if (!wk) { setErr('Indica la settimana.'); return; }
+    if (!txt.trim()) { setErr('Incolla prima il testo.'); return; }
+    var parsed = parseProgram(txt, +val('f-pst') || 1);
+    sheet = { type: 'pimport', stage: 2, parsed: parsed, week: weekStart(wk), text: txt, start: val('f-pst') };
+    openPImport(2);
+  }
+  function applyPImport() {
+    var P = sheet.parsed, wk = sheet.week, wds = Object.keys(P).map(Number).sort(), fn = firstNames(), chain = Promise.resolve();
+    var pmap = {}, newApp = {}, giorniAdd = {}, addGiorni = !!(document.getElementById('f-pgg') || {}).checked, base = Date.now(), nn = 0;
+    each(document.querySelectorAll('#sheetForm select[data-pm]'), function (e) { pmap[norm(e.getAttribute('data-pm'))] = e.value; });
+    var rsel = {};
+    each(document.querySelectorAll('#sheetForm select[data-r]'), function (e) { rsel[e.getAttribute('data-r')] = e.value; });
+    function person(n) {
+      var k = norm(n);
+      if (fn[k]) return fn[k].id;
+      var v = pmap[k];
+      if (!v || v === 'skip') return '';
+      if (v === 'jolly' || v === 'cleaner') {
+        var id = newId(), c = { id: id, nome: n.charAt(0).toUpperCase() + n.slice(1), jolly: v === 'jolly' };
+        fn[k] = c;
+        chain = chain.then(function () { return put('cleaners', id, { nome: c.nome, ordine: base + (nn++), jolly: c.jolly }); });
+        return id;
+      }
+      return v;
+    }
+    wds.forEach(function (wd) {
+      var ds = addDays(wk, wd - 1), doc = { squadre: [], extra: [], saltati: [], dett: {} }, where = {};
+      P[wd].squads.forEach(function (s, si) {
+        var mem = [], ap = [], lastKid = null;
+        s.people.forEach(function (n) { var id = person(n); if (id && mem.indexOf(id) < 0) mem.push(id); });
+        s.rows.forEach(function (r, ri) {
+          var v = rsel[wd + '-' + si + '-' + ri] || 'skip', kid = null;
+          if (v === 'skip') { lastKid = null; return; }
+          if (v === 'cont') {
+            if (lastKid) doc.dett[lastKid] = (doc.dett[lastKid] ? doc.dett[lastKid] + ' ' : '') + (r.name + (r.dett ? ' ' + r.dett : '')).trim();
+            return;
+          }
+          if (v === 'new') {
+            var key = norm(r.name);
+            if (!newApp[key]) {
+              newApp[key] = { id: newId(), nome: r.name };
+              chain = chain.then((function (a) { return function () { return put('condomini', a.id, { nome: a.nome, ricavo: 0, stipendio: 0, cleanerId: '', giorni: [wd] }); }; })(newApp[key]));
+            }
+            kid = newApp[key].id;
+            giorniAdd[kid] = giorniAdd[kid] || {}; giorniAdd[kid][wd] = 1;
+          } else {
+            kid = v;
+            giorniAdd[kid] = giorniAdd[kid] || {}; giorniAdd[kid][wd] = 1;
+          }
+          lastKid = kid;
+          var txt = r.dett || '';
+          if (where[kid]) { if (txt) doc.dett[kid] = (doc.dett[kid] ? doc.dett[kid] + ' / ' : '') + txt; return; }
+          where[kid] = 1; ap.push(kid);
+          if (txt) doc.dett[kid] = txt;
+        });
+        doc.squadre.push({ id: newId(), membri: mem, appalti: ap, nota: s.nota || '' });
+      });
+      var kids = Object.keys(where);
+      kids.forEach(function (kid) {
+        var k = find(state.condomini, kid);
+        if (k && !addGiorni && k.giorni.indexOf(wd) < 0) doc.extra.push(kid);
+      });
+      chain = chain.then(function () { return put('programma', ds, doc); });
+    });
+    if (addGiorni) {
+      Object.keys(giorniAdd).forEach(function (kid) {
+        var k = find(state.condomini, kid);
+        if (!k) return;
+        var g = k.giorni.slice();
+        Object.keys(giorniAdd[kid]).forEach(function (w) { if (g.indexOf(+w) < 0) g.push(+w); });
+        if (g.length !== k.giorni.length) chain = chain.then(function () { return patch('condomini', kid, { giorni: g }); });
+      });
+    }
+    var first = addDays(wk, wds[0] - 1);
+    closeSheet();
+    state.date = first; state.page = 'prog';
+    try { localStorage.setItem('appalti.page', 'prog'); } catch (e) {}
+    guard(chain);
+    showToast('Programma importato: ' + wds.length + (wds.length === 1 ? ' giorno.' : ' giorni.'), null, null, 6000);
   }
 
   /* ---------- Azioni ---------- */
@@ -1747,6 +2060,7 @@ const firebaseConfig = {
         if (!sheet.arm) { sheet.arm = true; el.textContent = 'Tocca ancora: le sue scale tornano da assegnare'; break; }
         var dsq = sheet.id, dd = cloneDay(state.date);
         dd.squadre = dd.squadre.filter(function (x) { return x.id !== dsq; });
+        pruneDett(dd);
         closeSheet(); guard(put('programma', state.date, dd));
         break;
       case 'sq-add': openSqScale(id); break;
@@ -1763,6 +2077,19 @@ const firebaseConfig = {
         closeSheet(); guard(put('programma', state.date, de));
         break;
       case 'jolly': openJolly(); break;
+      case 'edit-dett': openDett(id); break;
+      case 'dett-chip': addDettWord(el.getAttribute('data-w')); break;
+      case 'copy-day':
+        var cd = state.date, cdoc = copyDayDoc(addDays(cd, -7), cd);
+        guard(put('programma', cd, cdoc));
+        break;
+      case 'copy-week': copyWeek(); break;
+      case 'pimport': openPImport(1); break;
+      case 'pi-back':
+        var bt = sheet && sheet.text, bs = sheet && sheet.start, bw = sheet && sheet.week;
+        openPImport(1);
+        if (bt) { document.getElementById('f-ptxt').value = bt; document.getElementById('f-pst').value = bs; document.getElementById('f-pwk').value = bw; }
+        break;
       case 'days': openDays(el.getAttribute('data-only') === '1'); break;
       case 'days-filter': openDays(el.getAttribute('data-only') === '1'); break;
       case 'tg':
