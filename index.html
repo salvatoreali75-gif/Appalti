@@ -172,6 +172,7 @@ tr.tot td { background: var(--surface2); font-weight: 700; padding-block: 9px; }
   flex-direction: column;
   gap: 12px;
 }
+.sheet > * { flex-shrink: 0; }
 .sheet h3 { font-family: var(--font-display); font-weight: 800; font-size: 1.3rem; line-height: 1.1; margin: 0; }
 .field { display: flex; flex-direction: column; gap: 5px; }
 .field label { font-size: 0.8rem; font-weight: 600; color: var(--muted); }
@@ -220,6 +221,25 @@ tr.tot td { background: var(--surface2); font-weight: 700; padding-block: 9px; }
 .foot .row2 { justify-content: center; }
 #boot { max-width: 560px; margin: 0 auto; }
 
+.hb { display: flex; gap: 6px; flex: none; }
+.tools { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.tools .ghost { min-height: 44px; font-size: 0.9rem; }
+td.lm { font-style: italic; color: var(--muted); }
+details.imp { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+details.imp summary { display: flex; justify-content: space-between; gap: 8px; padding: 11px 12px; cursor: pointer; font-weight: 700; list-style: none; }
+details.imp summary::-webkit-details-marker { display: none; }
+details.imp[open] summary { background: var(--surface2); }
+details.imp summary small { color: var(--muted); font-weight: 600; white-space: nowrap; }
+.irow { display: flex; align-items: center; gap: 10px; padding: 9px 12px; border-top: 1px solid var(--line); font-size: 0.85rem; }
+.irow input { width: 20px; height: 20px; flex: none; accent-color: var(--accent); }
+.irow .in { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.irow .ia { font-variant-numeric: tabular-nums; color: var(--muted); font-size: 0.78rem; text-align: right; white-space: nowrap; }
+.irow.dup .in { color: var(--muted); }
+.tag { display: block; font-size: 0.72rem; color: var(--muted); }
+.tag.bad { color: var(--bad); }
+.opt { display: flex; gap: 10px; align-items: flex-start; font-size: 0.88rem; }
+.opt input { width: 20px; height: 20px; accent-color: var(--accent); flex: none; margin-top: 1px; }
+
 @media (min-width: 430px) {
   col.c-n { width: 64px; }
   td { font-size: 0.9rem; }
@@ -255,6 +275,7 @@ tr.tot td { background: var(--surface2); font-weight: 700; padding-block: 9px; }
 </main>
 <div id="sheetRoot"></div>
 <div id="toast" class="toast" hidden></div>
+<input type="file" id="xlsFile" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
@@ -306,7 +327,7 @@ const firebaseConfig = {
   }
   function toInput(n) { return n ? String(n).replace('.', ',') : ''; }
   function newId() { return 'x' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
-  function byName(a, b) { return a.nome.localeCompare(b.nome, 'it'); }
+  function byName(a, b) { return a.nome.localeCompare(b.nome, 'it', { numeric: true }); }
   function find(list, id) { for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i]; return null; }
 
   /* ---------- Dati: db se disponibile, altrimenti solo in memoria ---------- */
@@ -315,6 +336,7 @@ const firebaseConfig = {
     if (db) return db.collection(col).doc(id).set(data);
     var list = listFor(col), o = { id: id }, k;
     for (k in data) o[k] = data[k];
+    if (col === 'condomini' && (o.lordo === undefined || o.lordo === null)) { o.lm = true; o.lordo = o.stipendio || 0; }
     var cur = find(list, id);
     if (cur) list[list.indexOf(cur)] = o; else list.push(o);
     render();
@@ -345,7 +367,8 @@ const firebaseConfig = {
   function mapCondo(d) {
     var o = d.data() || {};
     var net = Number(o.stipendio) || 0;
-    return { id: d.id, nome: String(o.nome || ''), ricavo: Number(o.ricavo) || 0, stipendio: net, lordo: (o.lordo === undefined || o.lordo === null) ? net : (Number(o.lordo) || 0), cleanerId: String(o.cleanerId || '') };
+    var lm = (o.lordo === undefined || o.lordo === null);
+    return { id: d.id, nome: String(o.nome || ''), ricavo: Number(o.ricavo) || 0, stipendio: net, lordo: lm ? net : (Number(o.lordo) || 0), lm: lm, cleanerId: String(o.cleanerId || '') };
   }
 
   /* ---------- Calcoli ---------- */
@@ -378,14 +401,15 @@ const firebaseConfig = {
     var list = condoOf(c.id), t = sum(list);
     var h = '<section class="card"><div class="chead"><div><h2>' + esc(c.nome) + '</h2><p class="meta">' +
       list.length + (list.length === 1 ? ' condominio' : ' condomini') +
-      '</p></div><button class="ghost" type="button" data-act="edit-cleaner" data-id="' + esc(c.id) + '">Modifica</button></div>';
+      '</p></div><div class="hb"><button class="ghost" type="button" data-act="pdf-cleaner" data-id="' + esc(c.id) + '" aria-label="Scarica PDF di ' + esc(c.nome) + '">PDF</button>' +
+      '<button class="ghost" type="button" data-act="edit-cleaner" data-id="' + esc(c.id) + '">Modifica</button></div></div>';
     if (list.length) {
       h += '<div class="tw"><table><colgroup><col><col class="c-n"><col class="c-n"><col class="c-n"><col class="c-n"><col class="c-x"></colgroup>' +
         '<thead><tr><th class="l">Condominio</th><th>Ricavo</th><th>Netto</th><th>Lordo</th><th>Utile</th><th></th></tr></thead><tbody>';
       list.forEach(function (k) {
         var u = round2(k.ricavo - k.lordo);
         h += '<tr><td class="nm"><button class="rowbtn" type="button" data-act="edit-condo" data-id="' + esc(k.id) + '">' + esc(k.nome) + '</button></td>' +
-          '<td>' + fmt(k.ricavo) + '</td><td>' + fmt(k.stipendio) + '</td><td>' + fmt(k.lordo) + '</td><td class="u' + negCls(u) + '">' + fmt(u) + '</td>' +
+          '<td>' + fmt(k.ricavo) + '</td><td>' + fmt(k.stipendio) + '</td><td' + (k.lm ? ' class="lm"' : '') + '>' + fmt(k.lordo) + '</td><td class="u' + negCls(u) + '">' + fmt(u) + '</td>' +
           '<td class="x"><button class="xbtn" type="button" data-act="unassign" data-id="' + esc(k.id) + '" aria-label="Togli ' + esc(k.nome) + ' da ' + esc(c.nome) + '">×</button></td></tr>';
       });
       h += '<tr class="tot"><td class="nm">Totale</td><td>' + fmt(t.r) + '</td><td>' + fmt(t.s) + '</td><td>' + fmt(t.l) + '</td><td class="u' + negCls(t.u) + '">' + fmt(t.u) + '</td><td></td></tr>';
@@ -410,10 +434,16 @@ const firebaseConfig = {
     return '<section class="empty"><h2>Inizia dal primo pulitore</h2>' +
       '<p>Aggiungi i pulitori, poi assegna a ciascuno i condomini con ricavo, stipendio netto e costo busta paga. Utile e totali si calcolano da soli.</p>' +
       '<button class="btn block" type="button" data-act="add-cleaner">Aggiungi un pulitore</button>' +
+      '<button class="ghost block" type="button" data-act="import">Importa da un file Excel</button>' +
       '<button class="ghost block" type="button" data-act="seed">Prova con dati di esempio</button></section>';
   }
 
+  var renderTimer = null;
   function render() {
+    if (renderTimer) return;
+    renderTimer = setTimeout(function () { renderTimer = null; drawNow(); }, 25);
+  }
+  function drawNow() {
     if (!(state.c && state.k)) {
       if (state.denied) {
         root.innerHTML = '<p class="note">Questo accesso non è abilitato a vedere i dati. Chiedi di aggiungere la tua email alle regole di sicurezza.</p><div class="foot"><button class="ghost" type="button" data-act="logout">Esci</button></div>';
@@ -430,6 +460,9 @@ const firebaseConfig = {
       h += emptyHtml();
     } else {
       h += summaryHtml();
+      h += '<div class="tools"><button class="ghost" type="button" data-act="import">Importa da Excel</button><button class="ghost" type="button" data-act="pdf-all">PDF generale</button></div>';
+      var nlm = state.condomini.filter(function (k) { return k.lm; }).length;
+      if (nlm) h += '<p class="note">Per ' + nlm + (nlm === 1 ? ' condominio' : ' condomini') + ' manca ancora il costo busta paga (numero in corsivo): per ora uso lo stipendio netto.</p>';
       state.cleaners.forEach(function (c) { h += cleanerCard(c); });
     }
     var un = unassigned();
@@ -445,7 +478,7 @@ const firebaseConfig = {
 
   /* ---------- Avvisi ---------- */
   function hideToast() { toastEl.hidden = true; toastEl.innerHTML = ''; }
-  function showToast(msg, label, fn) {
+  function showToast(msg, label, fn, ms) {
     clearTimeout(toastTimer);
     toastEl.innerHTML = '<span></span>';
     toastEl.firstChild.textContent = msg;
@@ -457,7 +490,7 @@ const firebaseConfig = {
       toastEl.appendChild(b);
     }
     toastEl.hidden = false;
-    toastTimer = setTimeout(hideToast, 6500);
+    toastTimer = setTimeout(hideToast, ms || 6500);
   }
 
   /* ---------- Schede (fogli in basso) ---------- */
@@ -509,7 +542,7 @@ const firebaseConfig = {
     h += '<div class="field"><label for="f-nome">Condominio</label><input id="f-nome" type="text" autocomplete="off" value="' + esc(k ? k.nome : '') + '" placeholder="Es. Cond. Aurora, via Roma 12"></div>' +
       '<div class="field"><label for="f-ric">Ricavo ditta € al mese</label><input id="f-ric" type="text" inputmode="decimal" autocomplete="off" value="' + esc(k ? toInput(k.ricavo) : '') + '" placeholder="0"></div>' +
       '<div class="two"><div class="field"><label for="f-stip">Stipendio netto €</label><input id="f-stip" type="text" inputmode="decimal" autocomplete="off" value="' + esc(k ? toInput(k.stipendio) : '') + '" placeholder="0"></div>' +
-      '<div class="field"><label for="f-lordo">Costo busta paga €</label><input id="f-lordo" type="text" inputmode="decimal" autocomplete="off" value="' + esc(k ? toInput(k.lordo) : '') + '" placeholder="come il netto"></div></div>' +
+      '<div class="field"><label for="f-lordo">Costo busta paga €</label><input id="f-lordo" type="text" inputmode="decimal" autocomplete="off" value="' + esc(k && !k.lm ? toInput(k.lordo) : '') + '" placeholder="come il netto"></div></div>' +
       '<p class="hint">Il costo busta paga è il lordo, cioè quanto costa il pulitore alla ditta. Se lo lasci vuoto uso il netto.</p>' +
       '<div class="field"><label for="f-assign">Assegnato a</label><select id="f-assign">' + cleanerOptions(sel) + '</select></div>' +
       '<p class="prev" id="f-prev"></p><p class="err" id="f-err" role="alert"></p>' +
@@ -541,6 +574,7 @@ const firebaseConfig = {
 
   function saveSheet() {
     if (!sheet) return;
+    if (sheet.type === 'import') { doImport(); return; }
     var nome = val('f-nome').trim();
     if (sheet.type === 'cleaner') {
       if (!nome) { setErr('Scrivi il nome del pulitore.'); return; }
@@ -557,6 +591,506 @@ const firebaseConfig = {
     closeSheet();
     guard(q);
   }
+
+  /* ---------- Lettura di un file Excel (.xlsx) direttamente sul dispositivo ---------- */
+  function utf8(u8) { return new TextDecoder('utf-8').decode(u8); }
+  async function inflate(u8) {
+    if (typeof DecompressionStream === 'undefined') throw new Error('nodecomp');
+    var s = new Blob([u8]).stream().pipeThrough(new DecompressionStream('deflate-raw'));
+    return new Uint8Array(await new Response(s).arrayBuffer());
+  }
+  function readZip(buf) {
+    var u8 = new Uint8Array(buf), dv = new DataView(buf), found = -1, i;
+    if (u8.length < 22 || u8[0] !== 0x50 || u8[1] !== 0x4B) throw new Error('nozip');
+    for (i = u8.length - 22; i >= Math.max(0, u8.length - 65600); i--) {
+      if (dv.getUint32(i, true) === 0x06054b50) { found = i; break; }
+    }
+    if (found < 0) throw new Error('nozip');
+    var n = dv.getUint16(found + 10, true), off = dv.getUint32(found + 16, true), files = {}, k;
+    for (k = 0; k < n; k++) {
+      if (dv.getUint32(off, true) !== 0x02014b50) throw new Error('nozip');
+      var nl = dv.getUint16(off + 28, true), el = dv.getUint16(off + 30, true), cl = dv.getUint16(off + 32, true);
+      files[utf8(u8.subarray(off + 46, off + 46 + nl))] = { m: dv.getUint16(off + 10, true), cs: dv.getUint32(off + 20, true), lh: dv.getUint32(off + 42, true) };
+      off += 46 + nl + el + cl;
+    }
+    return {
+      text: async function (name) {
+        var f = files[name];
+        if (!f) return null;
+        var nl2 = dv.getUint16(f.lh + 26, true), el2 = dv.getUint16(f.lh + 28, true), st = f.lh + 30 + nl2 + el2;
+        var data = u8.subarray(st, st + f.cs);
+        if (f.m === 0) return utf8(data);
+        if (f.m === 8) return utf8(await inflate(data));
+        throw new Error('nozip');
+      }
+    };
+  }
+  function xml(s) {
+    var d = new DOMParser().parseFromString(s, 'application/xml');
+    if (d.getElementsByTagName('parsererror').length) throw new Error('badxml');
+    return d;
+  }
+  function each(list, fn) { Array.prototype.forEach.call(list, fn); }
+  function parseSheet(d, shared) {
+    var rows = {}, rs = d.getElementsByTagNameNS('*', 'row'), i, j;
+    for (i = 0; i < rs.length; i++) {
+      var rn = Number(rs[i].getAttribute('r')) || (i + 1);
+      if (rn > 400) break;
+      var cs = rs[i].getElementsByTagNameNS('*', 'c'), row = {};
+      for (j = 0; j < cs.length; j++) {
+        var c = cs[j], m = /^([A-Z]+)/.exec(c.getAttribute('r') || '');
+        if (!m) continue;
+        var t = c.getAttribute('t'), v = null, ve = c.getElementsByTagNameNS('*', 'v')[0];
+        if (t === 'inlineStr') {
+          v = '';
+          each(c.getElementsByTagNameNS('*', 't'), function (x) { v += x.textContent; });
+        } else if (ve) {
+          var raw = ve.textContent;
+          if (t === 's') v = shared[Number(raw)];
+          else if (t === 'str') v = raw;
+          else if (t === 'b' || t === 'e') v = null;
+          else { v = Number(raw); if (!isFinite(v)) v = null; }
+        }
+        if (v !== null && v !== undefined && v !== '') row[m[1]] = v;
+      }
+      rows[rn] = row;
+    }
+    return rows;
+  }
+  async function readXlsx(buf) {
+    var z = readZip(buf);
+    var wbT = await z.text('xl/workbook.xml');
+    if (wbT === null) throw new Error('nozip');
+    var wb = xml(wbT), rels = {}, shared = [], out = [];
+    var relsT = await z.text('xl/_rels/workbook.xml.rels');
+    if (relsT) each(xml(relsT).getElementsByTagNameNS('*', 'Relationship'), function (r) { rels[r.getAttribute('Id')] = r.getAttribute('Target'); });
+    var ssT = await z.text('xl/sharedStrings.xml');
+    if (ssT) each(xml(ssT).getElementsByTagNameNS('*', 'si'), function (si) {
+      var t = '';
+      each(si.getElementsByTagNameNS('*', 't'), function (x) { if (x.parentNode.localName !== 'rPh') t += x.textContent; });
+      shared.push(t);
+    });
+    var sheets = wb.getElementsByTagNameNS('*', 'sheet'), i;
+    for (i = 0; i < sheets.length; i++) {
+      var sh = sheets[i], stt = sh.getAttribute('state');
+      if (stt === 'hidden' || stt === 'veryHidden') continue;
+      var rid = sh.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id') || sh.getAttribute('r:id');
+      var tg = rels[rid];
+      if (!tg) continue;
+      var sx = await z.text(tg.charAt(0) === '/' ? tg.slice(1) : 'xl/' + tg);
+      if (sx === null) continue;
+      out.push({ name: sh.getAttribute('name') || '', rows: parseSheet(xml(sx), shared) });
+    }
+    return out;
+  }
+
+  function norm(s) { return String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/\s+/g, ' ').trim(); }
+  function cellText(v) { return (typeof v === 'string') ? v.replace(/\s+/g, ' ').trim() : ''; }
+  function cellNum(v) {
+    if (typeof v === 'number') return v >= 0 ? round2(v) : null;
+    if (typeof v === 'string' && /\d/.test(v)) { var n = parseMoney(v); return isNaN(n) ? null : n; }
+    return null;
+  }
+  // Un foglio per pulitore: nome in D2, tabella con intestazione "APPALTO" in colonna C, ricavo in D, stipendio netto in F.
+  function extractFromSheets(sheets) {
+    var res = { cleaners: [], ignored: [] };
+    sheets.forEach(function (sh) {
+      var rows = sh.rows, hdr = 0, r;
+      for (r = 1; r <= 15; r++) if (rows[r] && /^appalt/i.test(cellText(rows[r].C))) { hdr = r; break; }
+      var fallback = !hdr;
+      if (!hdr) hdr = 6;
+      var unas = /assegnar/i.test(sh.name);
+      var name = cellText(rows[2] && rows[2].D) || sh.name;
+      var list = [];
+      for (r = hdr + 1; r <= hdr + 300; r++) {
+        var row = rows[r];
+        if (!row) continue;
+        var nome = cellText(row.C);
+        if (!nome || /^total/i.test(nome)) continue;
+        var ric = cellNum(row.D), net = cellNum(row.F);
+        if (fallback && ric === null && net === null) continue;
+        list.push({ nome: nome, ricavo: ric === null ? 0 : ric, stipendio: net === null ? 0 : net, none: ric === null && net === null, part: (ric === null) !== (net === null) });
+      }
+      if (!list.length) { res.ignored.push(sh.name); return; }
+      res.cleaners.push({ nome: unas ? 'Non assegnati' : name, unassigned: unas, condos: list });
+    });
+    return res;
+  }
+
+  function cleanerByName(nome) {
+    var n = norm(nome), i;
+    for (i = 0; i < state.cleaners.length; i++) if (norm(state.cleaners[i].nome) === n) return state.cleaners[i];
+    return null;
+  }
+  function condoExists(cid, nome) {
+    var n = norm(nome), i;
+    for (i = 0; i < state.condomini.length; i++) {
+      var k = state.condomini[i];
+      if ((k.cleanerId || '') === cid && norm(k.nome) === n) return k;
+    }
+    return null;
+  }
+
+  function importSheetHtml(d) {
+    var nk = 0, dup = 0, miss = 0;
+    var h = '<h3>Importa da Excel</h3><p class="hint">Il file è stato letto solo su questo dispositivo e non è stato caricato da nessuna parte. Nei tuoi dati finiscono soltanto le righe che lasci spuntate qui sotto.</p>';
+    var body = '';
+    d.cleaners.forEach(function (c, ci) {
+      var ex = c.unassigned ? null : cleanerByName(c.nome), cid = c.unassigned ? '' : (ex ? ex.id : null);
+      var rows = '';
+      c.condos.forEach(function (k, ki) {
+        var isDup = cid !== null && !!condoExists(cid, k.nome);
+        nk++;
+        if (isDup) dup++;
+        if (k.none || k.part) miss++;
+        rows += '<label class="irow' + (isDup ? ' dup' : '') + '"><input type="checkbox" data-imp="' + ci + ':' + ki + '"' + (k.none ? '' : ' checked') + '>' +
+          '<span class="in">' + esc(k.nome) +
+          (isDup ? '<span class="tag">già presente</span>' : '') +
+          (k.none ? '<span class="tag bad">nessun importo nel file</span>' : (k.part ? '<span class="tag bad">manca un importo</span>' : '')) +
+          '</span><span class="ia">' + fmt(k.ricavo) + '<br>' + fmt(k.stipendio) + '</span></label>';
+      });
+      body += '<details class="imp"><summary><span>' + esc(c.nome) + '</span><small>' + c.condos.length + (c.condos.length === 1 ? ' condominio' : ' condomini') +
+        (c.unassigned ? ' · senza pulitore' : (ex ? ' · già presente' : ' · nuovo')) + '</small></summary>' + rows + '</details>';
+    });
+    h += '<p class="prev">Trovati <b>' + d.cleaners.length + (d.cleaners.length === 1 ? ' foglio' : ' fogli') + '</b> con <b>' + nk + ' condomini</b>' +
+      (dup ? ', di cui ' + dup + ' già presenti' : '') + '.' +
+      (miss ? '<br><small>' + miss + ' righe hanno importi mancanti: controllale.</small>' : '') + '</p>';
+    h += '<p class="hint">Per ogni riga vedi: ricavo sopra, stipendio netto sotto. Il costo busta paga (lordo) non c’è nel file: lo completi dopo, nell’app.</p>';
+    h += body;
+    if (d.ignored.length) h += '<p class="hint">Fogli senza condomini, ignorati: ' + d.ignored.length + '.</p>';
+    h += '<label class="opt"><input type="checkbox" id="imp-upd"><span>Aggiorna ricavo e stipendio netto dei condomini già presenti</span></label>';
+    h += '<button class="btn block" type="submit">Importa le righe spuntate</button><button class="ghost block" type="button" data-act="close">Annulla</button>';
+    return h;
+  }
+
+  function loadXlsx(file) {
+    showToast('Leggo il file…', null, null, 20000);
+    file.arrayBuffer().then(readXlsx).then(function (sheets) {
+      hideToast();
+      var d = extractFromSheets(sheets);
+      if (!d.cleaners.length) { showToast('Non ho trovato condomini in questo file.', null, null, 8000); return; }
+      sheet = { type: 'import', data: d };
+      openSheet(importSheetHtml(d));
+    }).catch(function (err) {
+      var m = err && err.message;
+      showToast(m === 'nozip' ? 'Questo non sembra un file .xlsx. Se è un vecchio .xls, aprilo in Excel e salvalo come .xlsx.'
+        : m === 'nodecomp' ? 'Questo browser non riesce a leggere il file. Aggiorna Chrome.'
+        : 'Non riesco a leggere il file.', null, null, 9000);
+    });
+  }
+
+  function withTimeout(p, ms) {
+    return new Promise(function (resolve) {
+      var t = setTimeout(function () { resolve('slow'); }, ms);
+      p.then(function () { clearTimeout(t); resolve('ok'); }, function () { clearTimeout(t); resolve('fail'); });
+    });
+  }
+  function runJobs(jobs, onProg) {
+    var i = 0, fin = 0, res = { ok: 0, slow: 0, fail: 0 };
+    return new Promise(function (resolve) {
+      if (!jobs.length) { resolve(res); return; }
+      function next() {
+        if (i >= jobs.length) return;
+        var j = jobs[i++];
+        var p = j.op === 'patch' ? patch(j.col, j.id, j.data) : put(j.col, j.id, j.data);
+        withTimeout(p, 8000).then(function (r) {
+          res[r]++; fin++;
+          onProg(fin, jobs.length);
+          if (fin === jobs.length) resolve(res); else next();
+        });
+      }
+      for (var w = 0; w < 6 && w < jobs.length; w++) next();
+    });
+  }
+
+  function doImport() {
+    var d = sheet.data, upd = !!(document.getElementById('imp-upd') || {}).checked, picked = {};
+    each(document.querySelectorAll('[data-imp]'), function (el) { if (el.checked) picked[el.getAttribute('data-imp')] = true; });
+    var jobs = [], seen = {}, newByName = {}, st = { added: 0, upd: 0, skip: 0, cl: 0 }, base = Date.now();
+    d.cleaners.forEach(function (c, ci) {
+      var chosen = c.condos.filter(function (k, ki) { return picked[ci + ':' + ki]; });
+      if (!chosen.length) return;
+      var cid = '';
+      if (!c.unassigned) {
+        var ex = cleanerByName(c.nome), nn = norm(c.nome);
+        if (ex) cid = ex.id;
+        else if (newByName[nn]) cid = newByName[nn];
+        else { cid = newId(); newByName[nn] = cid; st.cl++; jobs.push({ op: 'put', col: 'cleaners', id: cid, data: { nome: c.nome, ordine: base + ci } }); }
+      }
+      chosen.forEach(function (k) {
+        var key = cid + '|' + norm(k.nome), ex2 = condoExists(cid, k.nome);
+        if (ex2) {
+          if (upd) { jobs.push({ op: 'patch', col: 'condomini', id: ex2.id, data: { ricavo: k.ricavo, stipendio: k.stipendio } }); st.upd++; } else st.skip++;
+        } else if (seen[key]) {
+          st.skip++;
+        } else {
+          seen[key] = true;
+          jobs.push({ op: 'put', col: 'condomini', id: newId(), data: { nome: k.nome, ricavo: k.ricavo, stipendio: k.stipendio, cleanerId: cid } });
+          st.added++;
+        }
+      });
+    });
+    closeSheet();
+    if (!jobs.length) { showToast('Niente da importare: ' + (st.skip ? 'le righe scelte erano già presenti.' : 'non hai spuntato nessuna riga.'), null, null, 8000); return; }
+    runJobs(jobs, function (n, tot) { showToast('Importo… ' + n + ' di ' + tot, null, null, 20000); }).then(function (r) {
+      var msg = 'Importati ' + st.added + (st.added === 1 ? ' condominio' : ' condomini') + (st.cl ? ' e ' + st.cl + (st.cl === 1 ? ' pulitore nuovo' : ' pulitori nuovi') : '') + '.';
+      if (st.upd) msg += ' Aggiornati ' + st.upd + '.';
+      if (st.skip) msg += ' Saltati ' + st.skip + ' già presenti.';
+      if (r.fail) msg += ' ' + r.fail + ' non salvati: riprova.';
+      else if (r.slow) msg += ' Alcuni si salvano appena torna la connessione.';
+      showToast(msg, null, null, 12000);
+    });
+  }
+
+  /* ---------- PDF scritto a mano (nessuna libreria esterna) ---------- */
+  var PW = 595.28, PH = 841.89, PM = 40, CW = PW - 2 * PM;
+  var INK = [0.07, 0.16, 0.17], MUTED = [0.35, 0.44, 0.45], ACC = [0.055, 0.486, 0.525], LINE = [0.82, 0.86, 0.86];
+  var SOFT = [0.95, 0.97, 0.97], TOTF = [0.87, 0.93, 0.93], BAD = [0.70, 0.22, 0.17], WHITE = [1, 1, 1];
+  // Larghezze dei caratteri 32..126 di Helvetica e Helvetica-Bold (millesimi di corpo)
+  var WR = [278, 278, 355, 556, 556, 889, 667, 191, 333, 333, 389, 584, 278, 333, 278, 278, 556, 556, 556, 556, 556, 556, 556, 556, 556, 556, 278, 278, 584, 584, 584, 556, 1015,
+    667, 667, 722, 722, 667, 611, 778, 722, 278, 500, 667, 556, 833, 722, 778, 667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611, 278, 278, 278, 469, 556, 333,
+    556, 556, 500, 556, 556, 278, 556, 556, 222, 222, 500, 222, 833, 556, 556, 556, 556, 333, 500, 278, 556, 500, 722, 500, 500, 500, 334, 260, 334, 584];
+  var WB = [278, 333, 474, 556, 556, 889, 722, 238, 333, 333, 389, 584, 278, 333, 278, 278, 556, 556, 556, 556, 556, 556, 556, 556, 556, 556, 333, 333, 584, 584, 584, 611, 975,
+    722, 722, 722, 722, 667, 611, 778, 722, 278, 556, 722, 611, 833, 722, 778, 667, 778, 722, 667, 611, 722, 667, 944, 667, 667, 611, 333, 278, 333, 584, 556, 333,
+    556, 611, 556, 611, 556, 333, 611, 611, 278, 278, 556, 278, 889, 611, 611, 611, 611, 389, 556, 333, 611, 556, 778, 556, 556, 500, 389, 280, 389, 584];
+
+  function pdfClean(s) {
+    return String(s).replace(/[−–—]/g, '-').replace(/[‘’]/g, "'").replace(/[“”]/g, '"')
+      .replace(/…/g, '...').replace(/ /g, ' ').replace(/€/g, '\x80').replace(/[^\x20-\x7E\x80\xA1-\xFF]/g, '?');
+  }
+  function wch(c, bold) {
+    if (c === 0x80) return 556;
+    if (c > 126) { c = String.fromCharCode(c).normalize('NFD').charCodeAt(0); if (c < 32 || c > 126) return 556; }
+    return (bold ? WB : WR)[c - 32];
+  }
+  function tw(s, bold, size) {
+    var w = 0, i;
+    for (i = 0; i < s.length; i++) w += wch(s.charCodeAt(i), bold);
+    return w * size / 1000;
+  }
+  function wrapText(str, bold, size, maxW) {
+    var words = pdfClean(str).split(/\s+/), lines = [], cur = '';
+    words.forEach(function (w) {
+      while (w && tw(w, bold, size) > maxW) {
+        var k = w.length;
+        while (k > 1 && tw(w.slice(0, k), bold, size) > maxW) k--;
+        if (cur) { lines.push(cur); cur = ''; }
+        lines.push(w.slice(0, k));
+        w = w.slice(k);
+      }
+      var t = cur ? cur + ' ' + w : w;
+      if (tw(t, bold, size) <= maxW) cur = t; else { lines.push(cur); cur = w; }
+    });
+    if (cur) lines.push(cur);
+    return lines.length ? lines : [''];
+  }
+  function n2(v) { return String(Math.round(v * 100) / 100); }
+  function pdfNum(n) {
+    n = round2(n);
+    var p = Math.abs(n).toFixed(2).split('.');
+    p[0] = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return (n < 0 ? '-' : '') + p[0] + ',' + p[1];
+  }
+  function pdfEur(n) { return pdfNum(n) + ' €'; }
+
+  function PdfDoc() {
+    var pages = [], ops = null;
+    function esc2(s) { return s.replace(/[\\()]/g, '\\$&'); }
+    return {
+      add: function () { ops = []; pages.push(ops); },
+      go: function (i) { ops = pages[i]; },
+      count: function () { return pages.length; },
+      text: function (x, y, str, o) {
+        o = o || {};
+        var size = o.s || 9.5, s = pdfClean(str), w = tw(s, o.b, size), col = o.c || INK;
+        if (o.a === 'r') x -= w; else if (o.a === 'c') x -= w / 2;
+        ops.push(n2(col[0]) + ' ' + n2(col[1]) + ' ' + n2(col[2]) + ' rg BT /' + (o.b ? 'F2' : 'F1') + ' ' + size + ' Tf ' + n2(x) + ' ' + n2(PH - y) + ' Td (' + esc2(s) + ') Tj ET');
+      },
+      rect: function (x, y, w, h, col) { ops.push(col.join(' ') + ' rg ' + n2(x) + ' ' + n2(PH - y - h) + ' ' + n2(w) + ' ' + n2(h) + ' re f'); },
+      line: function (x1, y, x2, col, lw) { ops.push(col.join(' ') + ' RG ' + (lw || 0.5) + ' w ' + n2(x1) + ' ' + n2(PH - y) + ' m ' + n2(x2) + ' ' + n2(PH - y) + ' l S'); },
+      build: function (title) {
+        var N = pages.length, out = '%PDF-1.4\n%\xE2\xE3\xCF\xD3\n', offs = [], i;
+        function obj(id, body) { offs[id] = out.length; out += id + ' 0 obj\n' + body + '\nendobj\n'; }
+        var d = new Date(), z = function (v) { return (v < 10 ? '0' : '') + v; };
+        obj(1, '<< /Type /Catalog /Pages 2 0 R >>');
+        var kids = [];
+        for (i = 0; i < N; i++) kids.push((7 + 2 * i) + ' 0 R');
+        obj(2, '<< /Type /Pages /Kids [' + kids.join(' ') + '] /Count ' + N + ' >>');
+        obj(3, '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>');
+        obj(4, '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>');
+        obj(5, '<< /Title (' + esc2(pdfClean(title)) + ') /Producer (Appalti pulizie) /CreationDate (D:' + d.getFullYear() + z(d.getMonth() + 1) + z(d.getDate()) + z(d.getHours()) + z(d.getMinutes()) + z(d.getSeconds()) + ') >>');
+        for (i = 0; i < N; i++) {
+          var c = pages[i].join('\n');
+          obj(6 + 2 * i, '<< /Length ' + c.length + ' >>\nstream\n' + c + '\nendstream');
+          obj(7 + 2 * i, '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' + PW + ' ' + PH + '] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ' + (6 + 2 * i) + ' 0 R >>');
+        }
+        var M = 6 + 2 * N, xr = out.length;
+        out += 'xref\n0 ' + M + '\n0000000000 65535 f \n';
+        for (i = 1; i < M; i++) out += ('0000000000' + offs[i]).slice(-10) + ' 00000 n \n';
+        out += 'trailer\n<< /Size ' + M + ' /Root 1 0 R /Info 5 0 R >>\nstartxref\n' + xr + '\n%%EOF';
+        var u = new Uint8Array(out.length);
+        for (i = 0; i < out.length; i++) u[i] = out.charCodeAt(i) & 255;
+        return u;
+      }
+    };
+  }
+
+  function makeReport(cleanerId) {
+    var doc = PdfDoc(), y = 0, today = new Date().toLocaleDateString('it-IT');
+    var groups = [], un = [], all = [];
+    if (cleanerId) {
+      var c0 = find(state.cleaners, cleanerId);
+      if (!c0) return null;
+      groups.push({ c: c0, list: condoOf(c0.id) });
+    } else {
+      state.cleaners.forEach(function (c) { groups.push({ c: c, list: condoOf(c.id) }); });
+      un = unassigned();
+    }
+    groups.forEach(function (g) { all = all.concat(g.list); });
+    var T = sum(all), hasLm = all.concat(un).some(function (k) { return k.lm; });
+
+    function page() {
+      doc.add();
+      y = PM;
+      doc.text(PM, y + 8, 'Appalti pulizie', { b: 1, s: 9, c: ACC });
+      doc.text(PW - PM, y + 8, today, { s: 9, c: MUTED, a: 'r' });
+      doc.line(PM, y + 14, PW - PM, LINE, 0.6);
+      y += 32;
+    }
+    function room(h) { if (y + h > PH - PM - 18) page(); }
+    function fitSize(s, bold, max, min) {
+      var sz = max, w = pdfClean(s);
+      while (sz > min && tw(w, bold, sz) > CW) sz -= 1;
+      return sz;
+    }
+    function cards(t, lastLabel) {
+      var gap = 8, w = (CW - 3 * gap) / 4;
+      var it = [['Ricavo', t.r], ['Costo busta paga', t.l], ['Stipendi netti', t.s], [lastLabel, t.u]];
+      it.forEach(function (x, i) {
+        var xx = PM + i * (w + gap);
+        doc.rect(xx, y, w, 46, i === 3 ? TOTF : SOFT);
+        doc.text(xx + 8, y + 15, x[0], { s: 7.5, c: MUTED });
+        doc.text(xx + 8, y + 36, pdfEur(x[1]), { b: 1, s: 12, c: i === 3 && x[1] < 0 ? BAD : INK });
+      });
+      y += 46 + 18;
+    }
+    function table(cols, head, rows) {
+      var size = 9, lh = 11.5;
+      function drawHead() {
+        doc.rect(PM, y, CW, 20, ACC);
+        var x = PM;
+        cols.forEach(function (c, i) {
+          doc.text(c.a === 'r' ? x + c.w - 6 : x + 6, y + 13.5, head[i], { b: 1, s: 8, c: WHITE, a: c.a });
+          x += c.w;
+        });
+        y += 20;
+      }
+      room(20 + 28);
+      drawHead();
+      rows.forEach(function (r, ri) {
+        var lines = wrapText(r.c[0], r.b, size, cols[0].w - 12), h = lines.length * lh + 8;
+        if (y + h > PH - PM - 18) { page(); drawHead(); }
+        if (r.fill) doc.rect(PM, y, CW, h, r.fill); else if (ri % 2) doc.rect(PM, y, CW, h, SOFT);
+        lines.forEach(function (ln, li) { doc.text(PM + 6, y + 12.2 + li * lh, ln, { b: r.b, s: size }); });
+        var x = PM + cols[0].w, i;
+        for (i = 1; i < cols.length; i++) {
+          doc.text(x + cols[i].w - 6, y + 12.2, r.c[i], { b: r.b, s: size, a: 'r', c: r.neg && r.neg[i] ? BAD : INK });
+          x += cols[i].w;
+        }
+        doc.line(PM, y + h, PM + CW, LINE, 0.4);
+        y += h;
+      });
+      y += 16;
+    }
+    function condoRows(list) {
+      var rows = list.map(function (k) {
+        var u = round2(k.ricavo - k.lordo);
+        return { c: [k.nome, pdfNum(k.ricavo), pdfNum(k.stipendio), pdfNum(k.lordo) + (k.lm ? '*' : ''), pdfNum(u)], neg: { 4: u < 0 } };
+      });
+      var t = sum(list);
+      rows.push({ c: ['Totale', pdfNum(t.r), pdfNum(t.s), pdfNum(t.l), pdfNum(t.u)], b: 1, fill: TOTF, neg: { 4: t.u < 0 } });
+      return rows;
+    }
+    var condoCols = [{ w: 215, a: 'l' }, { w: 75, a: 'r' }, { w: 75, a: 'r' }, { w: 75, a: 'r' }, { w: 75, a: 'r' }];
+    var condoHead = ['Condominio', 'Ricavo', 'Netto', 'Lordo (busta)', 'Utile'];
+    function heading(txt, right) {
+      room(60);
+      doc.text(PM, y + 12, txt, { b: 1, s: 12 });
+      if (right) doc.text(PW - PM, y + 12, right, { s: 9, c: MUTED, a: 'r' });
+      y += 20;
+    }
+    function plural(n) { return n + (n === 1 ? ' condominio' : ' condomini'); }
+
+    page();
+    var title = cleanerId ? groups[0].c.nome : 'Riepilogo generale';
+    doc.text(PM, y + 16, title, { b: 1, s: fitSize(title, true, 22, 12) });
+    y += 24;
+    doc.text(PM, y + 8, cleanerId ? 'Scheda pulitore · ' + plural(all.length) + ' · importi mensili in euro'
+      : groups.length + (groups.length === 1 ? ' pulitore' : ' pulitori') + ' · ' + plural(all.length) + ' · importi mensili in euro', { s: 9.5, c: MUTED });
+    y += 24;
+    cards(T, cleanerId ? 'Utile' : 'Utile ditta');
+
+    if (!cleanerId) {
+      heading('Riepilogo per pulitore');
+      if (groups.length) {
+        var cc = [{ w: 175, a: 'l' }, { w: 40, a: 'r' }, { w: 75, a: 'r' }, { w: 75, a: 'r' }, { w: 75, a: 'r' }, { w: 75, a: 'r' }];
+        var rr = groups.map(function (g) {
+          var t = sum(g.list);
+          return { c: [g.c.nome, String(g.list.length), pdfNum(t.r), pdfNum(t.s), pdfNum(t.l), pdfNum(t.u)], neg: { 5: t.u < 0 } };
+        });
+        rr.push({ c: ['Totale ditta', String(all.length), pdfNum(T.r), pdfNum(T.s), pdfNum(T.l), pdfNum(T.u)], b: 1, fill: TOTF, neg: { 5: T.u < 0 } });
+        table(cc, ['Pulitore', 'Cond.', 'Ricavo', 'Netto', 'Lordo (busta)', 'Utile'], rr);
+      } else {
+        doc.text(PM, y + 10, 'Nessun pulitore inserito.', { c: MUTED });
+        y += 24;
+      }
+      groups.forEach(function (g) {
+        if (!g.list.length) return;
+        heading(g.c.nome, plural(g.list.length));
+        table(condoCols, condoHead, condoRows(g.list));
+      });
+      if (un.length) {
+        heading('Non assegnati (esclusi dai totali)', plural(un.length));
+        table(condoCols, condoHead, condoRows(un));
+      }
+    } else if (all.length) {
+      table(condoCols, condoHead, condoRows(all));
+    } else {
+      doc.text(PM, y + 10, 'Nessun condominio assegnato.', { c: MUTED });
+      y += 24;
+    }
+    if (hasLm) {
+      room(24);
+      doc.text(PM, y + 8, '* Costo busta paga non ancora inserito: nel calcolo dell’utile uso lo stipendio netto.', { s: 8.5, c: MUTED });
+    }
+    var N = doc.count(), i;
+    for (i = 0; i < N; i++) {
+      doc.go(i);
+      doc.text(PM, PH - 26, 'Documento riservato', { s: 8, c: MUTED });
+      doc.text(PW - PM, PH - 26, 'Pagina ' + (i + 1) + ' di ' + N, { s: 8, c: MUTED, a: 'r' });
+    }
+    return { bytes: doc.build(title + ' - Appalti pulizie'), title: title };
+  }
+
+  function slug(s) { return norm(s).replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '') || 'pulitore'; }
+  function makePdf(cleanerId) {
+    var rep;
+    try { rep = makeReport(cleanerId); } catch (e) { rep = null; }
+    if (!rep) { showToast('Non sono riuscito a creare il PDF.'); return; }
+    var iso = new Date().toISOString().slice(0, 10);
+    var name = cleanerId ? 'Appalti_' + slug(rep.title) + '_' + iso + '.pdf' : 'Appalti_riepilogo_' + iso + '.pdf';
+    var url = URL.createObjectURL(new Blob([rep.bytes], { type: 'application/pdf' }));
+    var a = document.createElement('a');
+    a.href = url; a.download = name;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
+    showToast('PDF pronto: lo trovi nei download del telefono.', null, null, 5000);
+  }
+  document.getElementById('xlsFile').addEventListener('change', function (e) {
+    var f = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (f) loadXlsx(f);
+  });
 
   /* ---------- Azioni ---------- */
   function unassignWithUndo(id) {
@@ -603,6 +1137,9 @@ const firebaseConfig = {
       case 'logout': if (auth) signOut(auth); break;
       case 'close': closeSheet(); break;
       case 'seed': seedExample(); break;
+      case 'import': document.getElementById('xlsFile').click(); break;
+      case 'pdf-all': makePdf(null); break;
+      case 'pdf-cleaner': makePdf(id); break;
       case 'wipe':
         if (!state.wipeArm) { state.wipeArm = true; render(); setTimeout(function () { if (state.wipeArm) { state.wipeArm = false; render(); } }, 5000); }
         else { state.wipeArm = false; render(); wipeAll(); }
