@@ -137,6 +137,8 @@ col.c-x { width: 32px; }
 .rowbtn { background: none; border: 0; padding: 8px 0; text-align: left; font-weight: 600; font-size: 0.84rem; line-height: 1.25; width: 100%; overflow-wrap: break-word; }
 .xbtn { width: 32px; height: 32px; border-radius: 8px; border: 0; background: transparent; color: var(--muted); font-size: 1.25rem; line-height: 1; }
 .xbtn:active { background: var(--surface2); }
+tr.clk { cursor: pointer; }
+tr.clk:active td { background: var(--surface2); }
 tr.tot td { background: var(--surface2); font-weight: 700; padding-block: 9px; }
 .addrow { display: block; width: 100%; border: 0; border-top: 1px solid var(--line); background: transparent; color: var(--accent); font-weight: 700; padding: 13px 14px; text-align: left; }
 
@@ -267,7 +269,7 @@ details.imp summary small { color: var(--muted); font-weight: 600; white-space: 
   <div class="top">
     <div>
       <h1>Appalti pulizie</h1>
-      <p class="sub">Importi mensili in euro. Utile = ricavo meno costo busta paga.</p>
+      <p class="sub">Importi mensili in euro. Tocca un condominio o i suoi importi per modificarli.</p>
     </div>
     <button class="btn" type="button" data-act="add-cleaner" id="addCleanerBtn">+ Pulitore</button>
   </div>
@@ -408,7 +410,7 @@ const firebaseConfig = {
         '<thead><tr><th class="l">Condominio</th><th>Ricavo</th><th>Netto</th><th>Lordo</th><th>Utile</th><th></th></tr></thead><tbody>';
       list.forEach(function (k) {
         var u = round2(k.ricavo - k.lordo);
-        h += '<tr><td class="nm"><button class="rowbtn" type="button" data-act="edit-condo" data-id="' + esc(k.id) + '">' + esc(k.nome) + '</button></td>' +
+        h += '<tr class="clk" data-act="edit-condo" data-id="' + esc(k.id) + '"><td class="nm"><button class="rowbtn" type="button" data-act="edit-condo" data-id="' + esc(k.id) + '">' + esc(k.nome) + '</button></td>' +
           '<td>' + fmt(k.ricavo) + '</td><td>' + fmt(k.stipendio) + '</td><td' + (k.lm ? ' class="lm"' : '') + '>' + fmt(k.lordo) + '</td><td class="u' + negCls(u) + '">' + fmt(u) + '</td>' +
           '<td class="x"><button class="xbtn" type="button" data-act="unassign" data-id="' + esc(k.id) + '" aria-label="Togli ' + esc(k.nome) + ' da ' + esc(c.nome) + '">×</button></td></tr>';
       });
@@ -497,7 +499,7 @@ const firebaseConfig = {
   function openSheet(html) {
     sheetRoot.innerHTML = '<div class="scrim" data-act="close"></div><form class="sheet" id="sheetForm" role="dialog" aria-modal="true" novalidate>' + html + '</form>';
     document.body.classList.add('lock');
-    document.getElementById('sheetForm').addEventListener('submit', function (e) { e.preventDefault(); saveSheet(); });
+    document.getElementById('sheetForm').addEventListener('submit', function (e) { e.preventDefault(); if (sheet) sheet.next = false; saveSheet(); });
   }
   function closeSheet() {
     sheet = null;
@@ -548,6 +550,8 @@ const firebaseConfig = {
       '<p class="prev" id="f-prev"></p><p class="err" id="f-err" role="alert"></p>' +
       '<button class="btn block" type="submit">Salva</button>';
     if (k) {
+      var sibl = (k.cleanerId && find(state.cleaners, k.cleanerId)) ? condoOf(k.cleanerId) : unassigned();
+      if (sibl.length > 1 && sibl[sibl.length - 1].id !== k.id) h += '<button class="btn block" type="button" data-act="save-next" style="background:var(--surface2);color:var(--ink);border:1px solid var(--line)">Salva e vai al prossimo</button>';
       h += '<div class="row2">';
       if (sel) h += '<button class="ghost" type="button" data-act="unassign-sheet">Togli dal pulitore</button>';
       h += '<button class="ghost danger" type="button" data-act="del-condo">Elimina condominio</button></div>';
@@ -588,8 +592,15 @@ const firebaseConfig = {
     if (isNaN(r) || isNaN(s) || isNaN(l)) { setErr('Gli importi vanno scritti come numeri, per esempio 450 oppure 450,50.'); return; }
     var data = { nome: nome, ricavo: r, stipendio: s, lordo: l, cleanerId: val('f-assign') };
     var q = sheet.id ? patch('condomini', sheet.id, data) : put('condomini', newId(), data);
+    var nextId = null;
+    if (sheet.id && sheet.next) {
+      var cur = find(state.condomini, sheet.id);
+      var sib = (cur && cur.cleanerId && find(state.cleaners, cur.cleanerId)) ? condoOf(cur.cleanerId) : unassigned();
+      for (var si = 0; si < sib.length; si++) if (sib[si].id === sheet.id && sib[si + 1]) nextId = sib[si + 1].id;
+    }
     closeSheet();
     guard(q);
+    if (nextId) openCondo(nextId, null);
   }
 
   /* ---------- Lettura di un file Excel (.xlsx) direttamente sul dispositivo ---------- */
@@ -1137,6 +1148,7 @@ const firebaseConfig = {
       case 'logout': if (auth) signOut(auth); break;
       case 'close': closeSheet(); break;
       case 'seed': seedExample(); break;
+      case 'save-next': if (sheet) { sheet.next = true; saveSheet(); } break;
       case 'import': document.getElementById('xlsFile').click(); break;
       case 'pdf-all': makePdf(null); break;
       case 'pdf-cleaner': makePdf(id); break;
