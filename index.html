@@ -224,6 +224,8 @@ tr.tot td { background: var(--surface2); font-weight: 700; padding-block: 9px; }
 #boot { max-width: 560px; margin: 0 auto; }
 
 .hb { display: flex; gap: 6px; flex: none; }
+.top { flex-direction: column; align-items: stretch; }
+.top .hb { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .tools { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 .tools .ghost { min-height: 44px; font-size: 0.9rem; }
 td.lm { font-style: italic; color: var(--muted); }
@@ -271,7 +273,7 @@ details.imp summary small { color: var(--muted); font-weight: 600; white-space: 
       <h1>Appalti pulizie</h1>
       <p class="sub">Importi mensili in euro. Tocca un condominio o i suoi importi per modificarli.</p>
     </div>
-    <button class="btn" type="button" data-act="add-cleaner" id="addCleanerBtn">+ Pulitore</button>
+    <div class="hb"><button class="btn" type="button" data-act="add-condo" data-cleaner="" id="addCondoBtn">+ Appalto</button><button class="btn" type="button" data-act="add-cleaner" id="addCleanerBtn">+ Pulitore</button></div>
   </div>
   <div id="root" class="wrap" style="gap:14px"></div>
 </main>
@@ -429,7 +431,7 @@ const firebaseConfig = {
       h += '<div class="row"><div class="t"><b>' + esc(k.nome) + '</b><small>Ricavo ' + fmt(k.ricavo) + ' · Netto ' + fmt(k.stipendio) + ' · Lordo ' + fmt(k.lordo) + ' €</small></div>' +
         '<button class="ghost" type="button" data-act="edit-condo" data-id="' + esc(k.id) + '">Assegna</button></div>';
     });
-    return h + '</section>';
+    return h + '<button class="addrow" type="button" data-act="add-condo" data-cleaner="">+ Aggiungi appalto non assegnato</button></section>';
   }
 
   function emptyHtml() {
