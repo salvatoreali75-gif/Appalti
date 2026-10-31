@@ -287,6 +287,18 @@ details.imp summary small { color: var(--muted); font-weight: 600; white-space: 
 .field textarea { font-size: 16px; padding: 11px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); width: 100%; resize: vertical; }
 .irow b { display: block; font-size: 0.88rem; }
 .srch { font-size: 16px; padding: 11px 12px; min-height: 46px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); width: 100%; }
+.alert { border: 1px solid var(--bad); background: rgba(179, 57, 43, 0.08); border-radius: 14px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; font-size: 0.9rem; }
+.alert b { font-weight: 700; }
+.alert ul { margin: 0; padding-left: 18px; }
+.alert .chips { gap: 6px; }
+.alert .chip { background: var(--surface); border-color: var(--bad); color: var(--bad); padding: 6px 10px; }
+.note.ok { border-color: var(--good); color: var(--good); }
+.note.stale { border-color: var(--bad); color: var(--bad); }
+.note .ghost { margin-top: 8px; }
+.fix { color: var(--accent); display: block; }
+.searching .summary, .searching .tools, .searching .note, .searching .alert { display: none; }
+#mainSearch { display: block; }
+#mainSearch[hidden] { display: none; }
 .noresult { margin: 0; color: var(--muted); font-size: 0.9rem; }
 
 @media (min-width: 430px) {
@@ -321,6 +333,7 @@ details.imp summary small { color: var(--muted); font-weight: 600; white-space: 
     <div class="hb" id="topbtns"><button class="btn" type="button" data-act="add-condo" data-cleaner="" id="addCondoBtn">+ Appalto</button><button class="btn" type="button" data-act="add-cleaner" id="addCleanerBtn">+ Pulitore</button></div>
   </div>
   <nav class="tabs" id="tabs" aria-label="Pagine"><button type="button" class="tab on" data-act="page" data-p="app">Appalti</button><button type="button" class="tab" data-act="page" data-p="prog">Programma</button></nav>
+  <div id="mainSearch" hidden><input type="search" class="srch" id="mq" placeholder="Cerca appalto o pulitore…" autocomplete="off" autocapitalize="none" spellcheck="false" enterkeyhint="search"><p class="noresult" id="mnores" hidden style="margin-top:8px">Nessun risultato.</p></div>
   <div id="root" class="wrap" style="gap:14px"></div>
 </main>
 <div id="sheetRoot"></div>
@@ -419,7 +432,7 @@ const firebaseConfig = {
     var o = d.data() || {};
     var net = Number(o.stipendio) || 0;
     var lm = (o.lordo === undefined || o.lordo === null);
-    return { id: d.id, nome: String(o.nome || ''), ricavo: Number(o.ricavo) || 0, stipendio: net, lordo: lm ? net : (Number(o.lordo) || 0), lm: lm, cleanerId: String(o.cleanerId || ''),
+    return { id: d.id, nome: String(o.nome || ''), ricavo: Number(o.ricavo) || 0, stipendio: net, lordo: lm ? net : (Number(o.lordo) || 0), lm: lm, cleanerId: String(o.cleanerId || ''), nota: String(o.nota || ''),
       giorni: (Array.isArray(o.giorni) ? o.giorni : []).map(Number).filter(function (n) { return n >= 1 && n <= 7; }) };
   }
 
@@ -451,7 +464,7 @@ const firebaseConfig = {
 
   function cleanerCard(c) {
     var list = condoOf(c.id), t = sum(list);
-    var h = '<section class="card"><div class="chead"><div><h2>' + esc(c.nome) + '</h2><p class="meta">' +
+    var h = '<section class="card" data-cs="' + esc(sKey(c.nome)) + '"><div class="chead"><div><h2>' + esc(c.nome) + '</h2><p class="meta">' +
       list.length + (list.length === 1 ? ' appalto' : ' appalti') +
       '</p></div><div class="hb"><button class="ghost" type="button" data-act="pdf-cleaner" data-id="' + esc(c.id) + '" aria-label="Scarica PDF di ' + esc(c.nome) + '">PDF</button>' +
       '<button class="ghost" type="button" data-act="edit-cleaner" data-id="' + esc(c.id) + '">Modifica</button></div></div>';
@@ -460,7 +473,7 @@ const firebaseConfig = {
         '<thead><tr><th class="l">Appalto</th><th>Ricavo</th><th>Netto</th><th>Lordo</th><th>Utile</th><th></th></tr></thead><tbody>';
       list.forEach(function (k) {
         var u = round2(k.ricavo - k.lordo);
-        h += '<tr class="clk" data-act="edit-condo" data-id="' + esc(k.id) + '"><td class="nm"><button class="rowbtn" type="button" data-act="edit-condo" data-id="' + esc(k.id) + '">' + esc(k.nome) + '</button>' + (k.giorni.length ? '<span class="tag" style="padding-bottom:4px">' + giorniText(k.giorni) + '</span>' : '') + '</td>' +
+        h += '<tr class="clk" data-s="' + esc(sKey(k.nome + ' ' + c.nome)) + '" data-act="edit-condo" data-id="' + esc(k.id) + '"><td class="nm"><button class="rowbtn" type="button" data-act="edit-condo" data-id="' + esc(k.id) + '">' + esc(k.nome) + '</button>' + ((k.giorni.length || k.nota) ? '<span class="tag" style="padding-bottom:4px">' + giorniText(k.giorni) + (k.giorni.length && k.nota ? ' · ' : '') + esc(k.nota) + '</span>' : '') + '</td>' +
           '<td>' + fmt(k.ricavo) + '</td><td>' + fmt(k.stipendio) + '</td><td' + (k.lm ? ' class="lm"' : '') + '>' + fmt(k.lordo) + '</td><td class="u' + negCls(u) + '">' + fmt(u) + '</td>' +
           '<td class="x"><button class="xbtn" type="button" data-act="unassign" data-id="' + esc(k.id) + '" aria-label="Togli ' + esc(k.nome) + ' da ' + esc(c.nome) + '">×</button></td></tr>';
       });
@@ -476,7 +489,7 @@ const firebaseConfig = {
   function looseCard(list) {
     var h = '<section class="card loose"><div class="chead"><div><h2>Non assegnati</h2><p class="meta">Senza pulitore, non inclusi nei totali</p></div></div>';
     list.forEach(function (k) {
-      h += '<div class="row"><div class="t"><b>' + esc(k.nome) + '</b><small>Ricavo ' + fmt(k.ricavo) + ' · Netto ' + fmt(k.stipendio) + ' · Lordo ' + fmt(k.lordo) + ' €</small></div>' +
+      h += '<div class="row" data-s="' + esc(sKey(k.nome)) + '"><div class="t"><b>' + esc(k.nome) + '</b><small>Ricavo ' + fmt(k.ricavo) + ' · Netto ' + fmt(k.stipendio) + ' · Lordo ' + fmt(k.lordo) + ' €</small></div>' +
         '<button class="ghost" type="button" data-act="edit-condo" data-id="' + esc(k.id) + '">Assegna</button></div>';
     });
     return h + '<button class="addrow" type="button" data-act="add-condo" data-cleaner="">+ Aggiungi appalto non assegnato</button></section>';
@@ -511,6 +524,7 @@ const firebaseConfig = {
     document.getElementById('topbtns').style.display = state.page === 'prog' ? 'none' : '';
     document.getElementById('subTxt').textContent = state.page === 'prog' ? 'Chi copre le scale scoperte, giorno per giorno.' : 'Importi mensili in euro. Tocca un appalto o i suoi importi per modificarli.';
     if (state.local) h += '<p class="note">Il salvataggio non è attivo in questa vista: i dati restano solo finché la pagina è aperta.</p>';
+    h += alertHtml();
     if (state.page === 'prog') {
       h += progHtml();
     } else if (!state.cleaners.length) {
@@ -537,7 +551,28 @@ const firebaseConfig = {
     }
     h += '</div></div>';
     root.innerHTML = h;
+    var ms = document.getElementById('mainSearch');
+    ms.hidden = !(state.page === 'app' && state.cleaners.length);
+    if (ms.hidden) { root.classList.remove('searching'); } else { applyMainFilter(); }
   }
+  function applyMainFilter() {
+    var q = wtoks(document.getElementById('mq').value), shown = 0;
+    root.classList.toggle('searching', q.length > 0);
+    each(root.querySelectorAll('[data-s]'), function (el) {
+      var hay = el.getAttribute('data-s'), ok = !q.length || q.every(function (w) { return hay.indexOf(w) > -1; });
+      el.style.display = ok ? '' : 'none';
+      if (ok) shown++;
+    });
+    each(root.querySelectorAll('section.card'), function (cd) {
+      var any = Array.prototype.some.call(cd.querySelectorAll('[data-s]'), function (e) { return e.style.display !== 'none'; });
+      var own = cd.hasAttribute('data-cs') && q.every(function (w) { return cd.getAttribute('data-cs').indexOf(w) > -1; });
+      cd.style.display = (!q.length || any || own) ? '' : 'none';
+      if (own && !any) shown++;
+      each(cd.querySelectorAll('tr.tot, .addrow'), function (t) { t.style.display = q.length ? 'none' : ''; });
+    });
+    document.getElementById('mnores').hidden = !q.length || shown > 0;
+  }
+  document.getElementById('mq').addEventListener('input', applyMainFilter);
 
   /* ---------- Avvisi ---------- */
   function hideToast() { toastEl.hidden = true; toastEl.innerHTML = ''; }
@@ -611,6 +646,7 @@ const firebaseConfig = {
       '<div class="field"><label for="f-lordo">Costo busta paga €</label><input id="f-lordo" type="text" inputmode="decimal" autocomplete="off" value="' + esc(k && !k.lm ? toInput(k.lordo) : '') + '" placeholder="come il netto"></div></div>' +
       '<p class="hint">Il costo busta paga è il lordo, cioè quanto costa il pulitore alla ditta. Se lo lasci vuoto uso il netto.</p>' +
       daysField(k ? k.giorni : []) +
+      '<div class="field"><label for="f-anota">Note fisse (compaiono ogni volta nel programma)</label><input id="f-anota" type="text" autocomplete="off" value="' + esc(k ? k.nota : '') + '" placeholder="Es. non prima delle 8, chiavi a Serra"></div>' +
       '<div class="field"><label for="f-assign">Assegnato a</label><select id="f-assign">' + cleanerOptions(sel) + '</select></div>' +
       '<p class="prev" id="f-prev"></p><p class="err" id="f-err" role="alert"></p>' +
       '<button class="btn block" type="submit">Salva</button>';
@@ -663,7 +699,8 @@ const firebaseConfig = {
     var r = parseMoney(val('f-ric')), s = parseMoney(val('f-stip')), l = lordoVal(s);
     if (!nome) { setErr('Scrivi il nome dell\u2019appalto.'); return; }
     if (isNaN(r) || isNaN(s) || isNaN(l)) { setErr('Gli importi vanno scritti come numeri, per esempio 450 oppure 450,50.'); return; }
-    var data = { nome: nome, ricavo: r, stipendio: s, lordo: l, cleanerId: val('f-assign'), giorni: readDays() };
+    var data = { nome: nome, ricavo: r, stipendio: s, lordo: l, cleanerId: val('f-assign'), giorni: readDays(), nota: val('f-anota').replace(/\s+/g, ' ').trim() };
+    var simil = state.condomini.filter(function (x) { return x.id !== sheet.id && sameApp(x, { nome: nome }); });
     var q = sheet.id ? patch('condomini', sheet.id, data) : put('condomini', newId(), data);
     var nextId = null;
     if (sheet.id && sheet.next) {
@@ -673,6 +710,7 @@ const firebaseConfig = {
     }
     closeSheet();
     guard(q);
+    if (simil.length) showToast('Attenzione: esiste già «' + simil[0].nome + '» (' + ownerName(simil[0]) + '). Controlla che non sia un doppione.', null, null, 8000);
     if (nextId) openCondo(nextId, null);
   }
 
@@ -1178,14 +1216,15 @@ const firebaseConfig = {
     showToast('PDF pronto: lo trovi nei download del telefono.', null, null, 5000);
   }
   // Sul telefono apre il menu Condividi (WhatsApp, email, Salva nei file...): il PDF resta un vero file.
-  function saveFile(bytes, name, title) {
+  function saveFile(bytes, name, title, done) {
     var file = null;
     try { file = new File([bytes], name, { type: 'application/pdf' }); } catch (e) {}
     if (file && isTouch() && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-      navigator.share({ files: [file], title: title }).catch(function (err) { if (!err || err.name !== 'AbortError') downloadFile(bytes, name); });
+      navigator.share({ files: [file], title: title }).then(function () { if (done) done(); }, function (err) { if (!err || err.name !== 'AbortError') { downloadFile(bytes, name); if (done) done(); } });
       return;
     }
     downloadFile(bytes, name);
+    if (done) done();
   }
   document.getElementById('xlsFile').addEventListener('change', function (e) {
     var f = e.target.files && e.target.files[0];
@@ -1226,16 +1265,20 @@ const firebaseConfig = {
     return {
       id: d.id,
       squadre: sq.map(function (s) { s = s || {}; return { id: String(s.id || ''), membri: arr(s.membri), appalti: arr(s.appalti), nota: String(s.nota || '') }; }),
-      extra: arr(o.extra), saltati: arr(o.saltati), dett: dmap(o.dett)
+      extra: arr(o.extra), saltati: arr(o.saltati), dett: dmap(o.dett),
+      mod: Number(o.mod) || 0,
+      inviato: (o.inviato && typeof o.inviato === 'object') ? { at: Number(o.inviato.at) || 0, da: String(o.inviato.da || '') } : null
     };
   }
-  function dayDoc(ds) { return find(state.programma, ds) || { id: ds, squadre: [], extra: [], saltati: [], dett: {} }; }
+  function dayDoc(ds) { return find(state.programma, ds) || { id: ds, squadre: [], extra: [], saltati: [], dett: {}, mod: 0, inviato: null }; }
   function cloneDay(ds) {
     var p = dayDoc(ds);
-    return {
+    var c = {
       squadre: p.squadre.map(function (s) { return { id: s.id, membri: s.membri.slice(), appalti: s.appalti.slice(), nota: s.nota || '' }; }),
-      extra: p.extra.slice(), saltati: p.saltati.slice(), dett: dmap(p.dett)
+      extra: p.extra.slice(), saltati: p.saltati.slice(), dett: dmap(p.dett), mod: p.mod || 0
     };
+    if (p.inviato) c.inviato = { at: p.inviato.at, da: p.inviato.da };
+    return c;
   }
   function absenceOf(cid, ds) {
     for (var i = 0; i < state.assenze.length; i++) {
@@ -1279,6 +1322,79 @@ const firebaseConfig = {
     return state.cleaners.filter(function (c) { return c.jolly && !busy[c.id] && !absenceOf(c.id, ds); });
   }
 
+  function sameApp(a, b) {
+    var A = keyToks(a.nome), B = keyToks(b.nome);
+    if (!A.length || A.length !== B.length) return false;
+    return A.every(function (x) { return B.some(function (y) { return teq(x, y); }); }) && B.every(function (x) { return A.some(function (y) { return teq(x, y); }); });
+  }
+  var dupCache = { sig: '', groups: [] };
+  function dupGroups() {
+    var list = state.condomini, sig = list.map(function (k) { return k.id + k.nome + k.cleanerId; }).join('|');
+    if (dupCache.sig === sig) return dupCache.groups;
+    var used = {}, groups = [], i, j;
+    for (i = 0; i < list.length; i++) {
+      if (used[i]) continue;
+      var g = [list[i]];
+      for (j = i + 1; j < list.length; j++) if (!used[j] && sameApp(list[i], list[j])) { g.push(list[j]); used[j] = 1; }
+      if (g.length > 1) groups.push(g);
+    }
+    dupCache = { sig: sig, groups: groups };
+    return groups;
+  }
+  function ownerName(k) { return (k.cleanerId && cname(k.cleanerId)) || 'non assegnato'; }
+  function dayWarn(info, ds) {
+    var w = [], cnt = {}, where = {};
+    info.day.squadre.forEach(function (s, i) {
+      var mem = s.membri.filter(function (m) { return find(state.cleaners, m); });
+      mem.forEach(function (m) {
+        (cnt[m] = cnt[m] || []).push(i + 1);
+        if (absenceOf(m, ds)) w.push(cname(m) + ' è assente ma è nella Squadra ' + (i + 1));
+      });
+      if (!mem.length && s.appalti.length) w.push('Squadra ' + (i + 1) + ' senza persone');
+      if (mem.length && s.appalti.length > 5 * mem.length) w.push('Squadra ' + (i + 1) + ': ' + s.appalti.length + ' scale per ' + mem.length + (mem.length === 1 ? ' persona' : ' persone'));
+      s.appalti.forEach(function (a) { (where[a] = where[a] || []).push(i + 1); });
+    });
+    Object.keys(cnt).forEach(function (m) { if (cnt[m].length > 1) w.push(cname(m) + ' è in più squadre (' + cnt[m].join(' e ') + ')'); });
+    Object.keys(where).forEach(function (a) { var k = find(state.condomini, a); if (k && where[a].length > 1) w.push(k.nome + ' è in più squadre'); });
+    dupGroups().forEach(function (g) {
+      var ids = g.filter(function (k) { return info.active.some(function (r) { return r.k.id === k.id; }); });
+      if (ids.length > 1) w.push(ids[0].nome + ' compare due volte in questo giorno (appalto doppio)');
+    });
+    return w;
+  }
+  function dayLabel(d, today) {
+    if (d === today) return 'Oggi';
+    if (d === addDays(today, 1)) return 'Domani';
+    return DOWS[isoDow(d) - 1] + ' ' + shortDate(d);
+  }
+  function alertHtml() {
+    if (!(state.pa && state.pp)) return '';
+    var today = dstr(new Date()), items = [], i, h = '';
+    for (i = 0; i < 4; i++) {
+      var d = addDays(today, i), inf = dayInfo(d);
+      if (inf.open.length) items.push({ d: d, n: inf.open.length });
+    }
+    var tm = addDays(today, 1), ti = dayInfo(tm), ss = sentState(tm), unsent = ti.day.squadre.length && ss !== 'ok';
+    var dups = dupGroups();
+    if (!items.length && !unsent && !dups.length) return '';
+    h = '<section class="alert" aria-label="Avvisi">';
+    if (dups.length) {
+      h += '<b>Possibili appalti doppi</b><div class="chips">';
+      dups.slice(0, 6).forEach(function (g) {
+        h += '<button class="chip" type="button" data-act="edit-condo" data-id="' + esc(g[0].id) + '">' + esc(g[0].nome) + ' · ' + esc(g.map(ownerName).join(' / ')) + '</button>';
+      });
+      if (dups.length > 6) h += '<span>e altri ' + (dups.length - 6) + '</span>';
+      h += '</div>';
+    }
+    if (items.length) {
+      h += '<b>Scale ancora da assegnare</b><div class="chips">';
+      items.forEach(function (x) { h += '<button class="chip" type="button" data-act="goday" data-date="' + x.d + '">' + esc(dayLabel(x.d, today)) + ': ' + x.n + (x.n === 1 ? ' scala' : ' scale') + '</button>'; });
+      h += '</div>';
+    }
+    if (unsent) h += '<div><b>Programma di domani ' + (ss === 'stale' ? 'modificato dopo l\u2019invio' : 'non ancora inviato') + '</b> <button class="chip" type="button" data-act="goday" data-date="' + tm + '">Apri</button></div>';
+    return h + '</section>';
+  }
+
   function progHtml() {
     if (!(state.pa && state.pp)) {
       return state.perr ? '<p class="note">Non riesco a leggere il programma. Controlla la connessione e riapri la pagina.</p>' : '<p class="note">Carico il programma…</p>';
@@ -1293,6 +1409,14 @@ const firebaseConfig = {
     }
     h += '</div>';
     h += '<h2 class="dh">' + esc(cap(longDate(ds))) + '</h2>';
+    var ss = sentState(ds), pdoc = dayDoc(ds);
+    if (info.day.squadre.length) {
+      if (ss === 'ok') h += '<p class="note ok">Inviato il ' + esc(fmtWhen(pdoc.inviato.at)) + (pdoc.inviato.da ? ' da ' + esc(pdoc.inviato.da.split('@')[0]) : '') + ' <button class="ghost" type="button" data-act="sent-off">Togli</button></p>';
+      else if (ss === 'stale') h += '<p class="note stale">Modificato dopo l\u2019invio del ' + esc(fmtWhen(pdoc.inviato.at)) + ': invia di nuovo. <button class="ghost" type="button" data-act="sent-on">Segna come inviato</button></p>';
+      else h += '<p class="note">Non ancora inviato. <button class="ghost" type="button" data-act="sent-on">Segna come inviato</button></p>';
+    }
+    var warns = dayWarn(info, ds);
+    if (warns.length) h += '<section class="alert"><b>Da controllare</b><ul>' + warns.map(function (x) { return '<li>' + esc(x) + '</li>'; }).join('') + '</ul></section>';
     var nog = state.condomini.filter(function (k) { return !k.giorni.length; }).length;
     if (!state.condomini.length) h += '<p class="note">Non ci sono ancora appalti: aggiungili nella pagina Appalti, poi indica i giorni in cui si fanno.</p>';
     else if (nog) h += '<p class="note">Per ' + nog + (nog === 1 ? ' appalto' : ' appalti') + ' non sono ancora indicati i giorni, quindi non compaiono nel calendario.<br><button class="ghost" type="button" data-act="days" data-only="1" style="margin-top:8px">Imposta i giorni</button></p>';
@@ -1330,7 +1454,7 @@ const firebaseConfig = {
         var k = find(state.condomini, kid);
         if (!k) return;
         var dt = info.day.dett[kid];
-        h += '<div class="srow"><div class="t" data-act="edit-dett" data-id="' + esc(kid) + '" style="cursor:pointer"><b>' + esc(k.nome) + '</b><small>' + (dt ? esc(dt) : 'Tocca per scrivere cosa fare') + '</small></div><button class="xbtn" type="button" data-act="sq-remove" data-id="' + esc(kid) + '" data-sq="' + esc(s.id) + '" aria-label="Togli ' + esc(k.nome) + ' dalla squadra">×</button></div>';
+        h += '<div class="srow"><div class="t" data-act="edit-dett" data-id="' + esc(kid) + '" style="cursor:pointer"><b>' + esc(k.nome) + '</b><small>' + (dt ? esc(dt) : 'Tocca per scrivere cosa fare') + '</small>' + (k.nota ? '<small class="fix">' + esc(k.nota) + '</small>' : '') + '</div><button class="xbtn" type="button" data-act="sq-remove" data-id="' + esc(kid) + '" data-sq="' + esc(s.id) + '" aria-label="Togli ' + esc(k.nome) + ' dalla squadra">×</button></div>';
       });
       h += '<button class="addrow" type="button" data-act="sq-add" data-id="' + esc(s.id) + '">+ Aggiungi scale</button></div>';
     });
@@ -1433,7 +1557,7 @@ const firebaseConfig = {
       if (p.id < dal || p.id > al) return;
       var d = cloneDay(p.id), ch = false;
       d.squadre.forEach(function (s) { var i = s.membri.indexOf(cid); if (i > -1) { s.membri.splice(i, 1); ch = true; } });
-      if (ch) { n++; chain = chain.then(function () { return put('programma', p.id, d); }); }
+      if (ch) { n++; chain = chain.then(function () { return putDay(p.id, d); }); }
     });
     guard(chain);
     if (n) showToast(cname(cid) + ' è stato tolto dalle squadre dei giorni di assenza.', null, null, 6000);
@@ -1480,7 +1604,7 @@ const firebaseConfig = {
     s.nota = val('f-nota').replace(/\s+/g, ' ').trim();
     if (sheet.pending) moveScala(d, sheet.pending, s);
     closeSheet();
-    guard(put('programma', ds, d));
+    guard(putDay(ds, d));
   }
 
   function openAssign(kid) {
@@ -1532,7 +1656,7 @@ const firebaseConfig = {
     if (!s || !ids.length) { closeSheet(); return; }
     ids.forEach(function (kid) { moveScala(d, kid, s); });
     closeSheet();
-    guard(put('programma', ds, d));
+    guard(putDay(ds, d));
   }
 
   function openExtra() {
@@ -1582,19 +1706,19 @@ const firebaseConfig = {
     if (!s) return;
     moveScala(d, kid, s);
     closeSheet();
-    guard(put('programma', ds, d));
+    guard(putDay(ds, d));
   }
   function removeFromSquads(kid, sqid) {
     var ds = state.date, d = cloneDay(ds);
     d.squadre.forEach(function (x) { if (!sqid || x.id === sqid) { var i = x.appalti.indexOf(kid); if (i > -1) x.appalti.splice(i, 1); } });
     pruneDett(d);
-    guard(put('programma', ds, d));
+    guard(putDay(ds, d));
   }
   function toggleSkip(kid) {
     var ds = state.date, d = cloneDay(ds), i = d.saltati.indexOf(kid);
     if (i > -1) d.saltati.splice(i, 1);
     else { d.saltati.push(kid); d.squadre.forEach(function (x) { var j = x.appalti.indexOf(kid); if (j > -1) x.appalti.splice(j, 1); }); pruneDett(d); }
-    guard(put('programma', ds, d));
+    guard(putDay(ds, d));
   }
 
   /* --- testo e PDF del giorno --- */
@@ -1603,7 +1727,7 @@ const firebaseConfig = {
     info.day.squadre.forEach(function (s, i) {
       squads.push({
         n: i + 1, nomi: s.membri.map(cname).filter(Boolean), nota: s.nota || '',
-        scale: s.appalti.map(function (id) { var k = find(state.condomini, id); return k ? { nome: k.nome, dett: info.day.dett[id] || '' } : null; }).filter(Boolean)
+        scale: s.appalti.map(function (id) { var k = find(state.condomini, id); return k ? { nome: k.nome, dett: info.day.dett[id] || '', nota: k.nota || '' } : null; }).filter(Boolean)
       });
     });
     return {
@@ -1617,7 +1741,7 @@ const firebaseConfig = {
     var D = dayData(ds), L = ['Programma ' + longDate(ds), ''];
     D.squads.forEach(function (s) {
       L.push((s.nomi.length ? s.nomi.join('/') : 'Squadra ' + s.n) + (s.nota ? ' - ' + s.nota : ''));
-      s.scale.forEach(function (x) { L.push(x.nome + (x.dett ? ': ' + x.dett : '')); });
+      s.scale.forEach(function (x) { var t = [x.dett, x.nota].filter(Boolean).join(' · '); L.push(x.nome + (t ? ': ' + t : '')); });
       L.push('');
     });
     if (D.open.length) { L.push('Ancora da assegnare:'); D.open.forEach(function (x) { L.push('- ' + x.nome); }); L.push(''); }
@@ -1665,7 +1789,7 @@ const firebaseConfig = {
       lines.forEach(function (ln, i) { doc.text(PM + 8, y + 14 + i * 13, ln, { b: 1, s: 10 }); });
       y += h;
       if (!s.scale.length) item('Nessuna scala assegnata', '', MUTED);
-      s.scale.forEach(function (x) { item(x.nome, x.dett, null, INK); });
+      s.scale.forEach(function (x) { item(x.nome, [x.dett, x.nota].filter(Boolean).join(' · '), null, INK); });
       y += 14;
     });
     if (D.open.length) {
@@ -1691,25 +1815,39 @@ const firebaseConfig = {
     var bytes;
     try { bytes = makeDayReport(ds); } catch (e) { bytes = null; }
     if (!bytes) { showToast('Non sono riuscito a creare il PDF.'); return; }
-    saveFile(bytes, 'Programma_' + ds + '.pdf', 'Programma ' + longDate(ds));
+    saveFile(bytes, 'Programma_' + ds + '.pdf', 'Programma ' + longDate(ds), function () { markSent(ds, true); });
   }
-  function copyText(t) {
+  function copyText(t, done) {
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(t).then(function () { showToast('Testo copiato: incollalo dove vuoi.'); }, function () { showToast('Non sono riuscito a copiare il testo.'); });
+      navigator.clipboard.writeText(t).then(function () { showToast('Testo copiato: incollalo dove vuoi.'); if (done) done(); }, function () { showToast('Non sono riuscito a copiare il testo.'); });
     } else {
       showToast('Non sono riuscito a copiare il testo.');
     }
   }
   function shareDayText(ds) {
     var txt = dayText(ds);
+    var done = function () { markSent(ds, true); };
     if (navigator.share && isTouch()) {
-      navigator.share({ text: txt }).catch(function (err) { if (!err || err.name !== 'AbortError') copyText(txt); });
+      navigator.share({ text: txt }).then(done, function (err) { if (!err || err.name !== 'AbortError') copyText(txt, done); });
       return;
     }
-    copyText(txt);
+    copyText(txt, done);
   }
 
   /* ---------- Programma: cosa fare, copia e importazione dal testo ---------- */
+  function putDay(ds, d) { d.mod = Date.now(); return put('programma', ds, d); }
+  function sentState(ds) {
+    var p = dayDoc(ds);
+    if (!p.inviato) return 'no';
+    return p.mod > p.inviato.at + 2000 ? 'stale' : 'ok';
+  }
+  function fmtWhen(t) { return new Date(t).toLocaleString('it-IT', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' }).replace(',', ' alle'); }
+  function markSent(ds, on) {
+    var d = cloneDay(ds);
+    d.mod = dayDoc(ds).mod || 0;
+    if (on) d.inviato = { at: Date.now(), da: state.user || '' }; else delete d.inviato;
+    guard(put('programma', ds, d));
+  }
   function pruneDett(d) {
     var inSq = {};
     d.squadre.forEach(function (s) { s.appalti.forEach(function (a) { inSq[a] = 1; }); });
@@ -1739,7 +1877,7 @@ const firebaseConfig = {
     var ds = state.date, d = cloneDay(ds), t = val('f-dett').replace(/\s+/g, ' ').trim();
     if (t) d.dett[sheet.id] = t; else delete d.dett[sheet.id];
     closeSheet();
-    guard(put('programma', ds, d));
+    guard(putDay(ds, d));
   }
 
   function copyDayDoc(from, to) {
@@ -1764,7 +1902,7 @@ const firebaseConfig = {
         var prev = addDays(ds, -7);
         if (dayDoc(ds).squadre.length || !dayDoc(prev).squadre.length) return;
         n++;
-        chain = chain.then(function () { return put('programma', ds, copyDayDoc(prev, ds)); });
+        chain = chain.then(function () { return putDay(ds, copyDayDoc(prev, ds)); });
       })(addDays(ws, i));
     }
     guard(chain);
@@ -1993,7 +2131,7 @@ const firebaseConfig = {
         var k = find(state.condomini, kid);
         if (k && !addGiorni && k.giorni.indexOf(wd) < 0) doc.extra.push(kid);
       });
-      chain = chain.then(function () { return put('programma', ds, doc); });
+      chain = chain.then(function () { return putDay(ds, doc); });
     });
     if (addGiorni) {
       Object.keys(giorniAdd).forEach(function (kid) {
@@ -2086,7 +2224,7 @@ const firebaseConfig = {
         var dsq = sheet.id, dd = cloneDay(state.date);
         dd.squadre = dd.squadre.filter(function (x) { return x.id !== dsq; });
         pruneDett(dd);
-        closeSheet(); guard(put('programma', state.date, dd));
+        closeSheet(); guard(putDay(state.date, dd));
         break;
       case 'sq-add': openSqScale(id); break;
       case 'sq-remove': removeFromSquads(id, el.getAttribute('data-sq')); break;
@@ -2099,16 +2237,23 @@ const firebaseConfig = {
       case 'addextra':
         var de = cloneDay(state.date);
         if (de.extra.indexOf(id) < 0) de.extra.push(id);
-        closeSheet(); guard(put('programma', state.date, de));
+        closeSheet(); guard(putDay(state.date, de));
         break;
       case 'jolly': openJolly(); break;
       case 'edit-dett': openDett(id); break;
       case 'dett-chip': addDettWord(el.getAttribute('data-w')); break;
       case 'copy-day':
         var cd = state.date, cdoc = copyDayDoc(addDays(cd, -7), cd);
-        guard(put('programma', cd, cdoc));
+        guard(putDay(cd, cdoc));
         break;
       case 'copy-week': copyWeek(); break;
+      case 'goday':
+        state.page = 'prog'; state.date = el.getAttribute('data-date');
+        try { localStorage.setItem('appalti.page', 'prog'); } catch (e) {}
+        render(); window.scrollTo(0, 0);
+        break;
+      case 'sent-on': markSent(state.date, true); break;
+      case 'sent-off': markSent(state.date, false); break;
       case 'pimport': openPImport(1); break;
       case 'pi-back':
         var bt = sheet && sheet.text, bs = sheet && sheet.start, bw = sheet && sheet.week;
