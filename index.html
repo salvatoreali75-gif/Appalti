@@ -544,7 +544,7 @@ const firebaseConfig = {
     }
     var un = unassigned();
     if (un.length && state.page !== 'prog') h += looseCard(un);
-    h += '<div class="foot"><p class="hint">Collegato come ' + esc(state.user || '') + '</p><div class="row2"><button class="ghost" type="button" data-act="logout">Esci</button>';
+    h += '<div class="foot"><p class="hint">Collegato come ' + esc(state.user || '') + ' · versione 13</p><div class="row2"><button class="ghost" type="button" data-act="logout">Esci</button>';
     if ((state.cleaners.length || state.condomini.length) && state.page !== 'prog') {
       h += '<button class="ghost' + (state.wipeArm ? ' danger' : '') + '" type="button" data-act="wipe">' +
         (state.wipeArm ? 'Tocca ancora per eliminare tutto' : 'Elimina tutti i dati') + '</button>';
@@ -2524,7 +2524,13 @@ const firebaseConfig = {
 </script>
 <script>
 if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)) {
-  window.addEventListener("load", function () { navigator.serviceWorker.register("sw.js").catch(function () {}); });
+  var hadCtl = !!navigator.serviceWorker.controller, reloaded = false;
+  navigator.serviceWorker.addEventListener("controllerchange", function () {
+    if (!hadCtl || reloaded) { hadCtl = true; return; }
+    reloaded = true;
+    var t = setInterval(function () { var sr = document.getElementById('sheetRoot'); if (!sr || !sr.firstChild) { clearInterval(t); location.reload(); } }, 800);
+  });
+  window.addEventListener("load", function () { navigator.serviceWorker.register("sw.js").then(function (r) { try { r.update(); } catch (e) {} }).catch(function () {}); });
 }
 </script>
 </body>
