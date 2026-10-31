@@ -256,7 +256,7 @@ details.imp summary small { color: var(--muted); font-weight: 600; white-space: 
 <section class="login" id="login" hidden>
   <div>
     <h1>Appalti pulizie</h1>
-    <p class="sub">Accedi per vedere condomini e conti.</p>
+    <p class="sub">Accedi per vedere gli appalti e i conti.</p>
   </div>
   <form class="box" id="loginForm" novalidate>
     <div class="field"><label for="l-email">Email</label><input id="l-email" type="email" autocomplete="username" inputmode="email" autocapitalize="none" spellcheck="false"></div>
@@ -271,7 +271,7 @@ details.imp summary small { color: var(--muted); font-weight: 600; white-space: 
   <div class="top">
     <div>
       <h1>Appalti pulizie</h1>
-      <p class="sub">Importi mensili in euro. Tocca un condominio o i suoi importi per modificarli.</p>
+      <p class="sub">Importi mensili in euro. Tocca un appalto o i suoi importi per modificarli.</p>
     </div>
     <div class="hb"><button class="btn" type="button" data-act="add-condo" data-cleaner="" id="addCondoBtn">+ Appalto</button><button class="btn" type="button" data-act="add-cleaner" id="addCleanerBtn">+ Pulitore</button></div>
   </div>
@@ -301,7 +301,7 @@ const firebaseConfig = {
   var sheetRoot = document.getElementById('sheetRoot');
   var toastEl = document.getElementById('toast');
   var db = null, auth = null;
-  var state = { cleaners: [], condomini: [], c: false, k: false, slow: false, denied: false, local: false, wipeArm: false, user: '' };
+  var state = { cleaners: [], appalti: [], c: false, k: false, slow: false, denied: false, local: false, wipeArm: false, user: '' };
   var sheet = null;
   var toastTimer = null;
 
@@ -404,12 +404,12 @@ const firebaseConfig = {
   function cleanerCard(c) {
     var list = condoOf(c.id), t = sum(list);
     var h = '<section class="card"><div class="chead"><div><h2>' + esc(c.nome) + '</h2><p class="meta">' +
-      list.length + (list.length === 1 ? ' condominio' : ' condomini') +
+      list.length + (list.length === 1 ? ' appaltio' : ' appalti') +
       '</p></div><div class="hb"><button class="ghost" type="button" data-act="pdf-cleaner" data-id="' + esc(c.id) + '" aria-label="Scarica PDF di ' + esc(c.nome) + '">PDF</button>' +
       '<button class="ghost" type="button" data-act="edit-cleaner" data-id="' + esc(c.id) + '">Modifica</button></div></div>';
     if (list.length) {
       h += '<div class="tw"><table><colgroup><col><col class="c-n"><col class="c-n"><col class="c-n"><col class="c-n"><col class="c-x"></colgroup>' +
-        '<thead><tr><th class="l">Condominio</th><th>Ricavo</th><th>Netto</th><th>Lordo</th><th>Utile</th><th></th></tr></thead><tbody>';
+        '<thead><tr><th class="l">Appalto</th><th>Ricavo</th><th>Netto</th><th>Lordo</th><th>Utile</th><th></th></tr></thead><tbody>';
       list.forEach(function (k) {
         var u = round2(k.ricavo - k.lordo);
         h += '<tr class="clk" data-act="edit-condo" data-id="' + esc(k.id) + '"><td class="nm"><button class="rowbtn" type="button" data-act="edit-condo" data-id="' + esc(k.id) + '">' + esc(k.nome) + '</button></td>' +
@@ -419,9 +419,9 @@ const firebaseConfig = {
       h += '<tr class="tot"><td class="nm">Totale</td><td>' + fmt(t.r) + '</td><td>' + fmt(t.s) + '</td><td>' + fmt(t.l) + '</td><td class="u' + negCls(t.u) + '">' + fmt(t.u) + '</td><td></td></tr>';
       h += '</tbody></table></div>';
     } else {
-      h += '<p class="none">Nessun condominio assegnato.</p>';
+      h += '<p class="none">Nessun appaltio assegnato.</p>';
     }
-    h += '<button class="addrow" type="button" data-act="add-condo" data-cleaner="' + esc(c.id) + '">+ Aggiungi condominio</button></section>';
+    h += '<button class="addrow" type="button" data-act="add-condo" data-cleaner="' + esc(c.id) + '">+ Aggiungi appaltio</button></section>';
     return h;
   }
 
@@ -436,7 +436,7 @@ const firebaseConfig = {
 
   function emptyHtml() {
     return '<section class="empty"><h2>Inizia dal primo pulitore</h2>' +
-      '<p>Aggiungi i pulitori, poi assegna a ciascuno i condomini con ricavo, stipendio netto e costo busta paga. Utile e totali si calcolano da soli.</p>' +
+      '<p>Aggiungi i pulitori, poi assegna a ciascuno gli appalti con ricavo, stipendio netto e costo busta paga. Utile e totali si calcolano da soli.</p>' +
       '<button class="btn block" type="button" data-act="add-cleaner">Aggiungi un pulitore</button>' +
       '<button class="ghost block" type="button" data-act="import">Importa da un file Excel</button>' +
       '<button class="ghost block" type="button" data-act="seed">Prova con dati di esempio</button></section>';
@@ -466,7 +466,7 @@ const firebaseConfig = {
       h += summaryHtml();
       h += '<div class="tools"><button class="ghost" type="button" data-act="import">Importa da Excel</button><button class="ghost" type="button" data-act="pdf-all">PDF generale</button></div>';
       var nlm = state.condomini.filter(function (k) { return k.lm; }).length;
-      if (nlm) h += '<p class="note">Per ' + nlm + (nlm === 1 ? ' condominio' : ' condomini') + ' manca ancora il costo busta paga (numero in corsivo): per ora uso lo stipendio netto.</p>';
+      if (nlm) h += '<p class="note">Per ' + nlm + (nlm === 1 ? ' appaltio' : ' appalti') + ' manca ancora il costo busta paga (numero in corsivo): per ora uso lo stipendio netto.</p>';
       state.cleaners.forEach(function (c) { h += cleanerCard(c); });
     }
     var un = unassigned();
@@ -536,14 +536,14 @@ const firebaseConfig = {
     var k = id ? find(state.condomini, id) : null;
     var sel = k ? (find(state.cleaners, k.cleanerId) ? k.cleanerId : '') : (cleanerId || '');
     sheet = { type: 'condo', id: k ? k.id : null, arm: false };
-    var h = '<h3>' + (k ? 'Modifica condominio' : 'Nuovo condominio') + '</h3>';
+    var h = '<h3>' + (k ? 'Modifica appaltio' : 'Nuovo appaltio') + '</h3>';
     var un = unassigned();
     if (!k && cleanerId && un.length) {
       h += '<div class="chips"><p>Assegna uno già inserito</p>';
       un.forEach(function (u) { h += '<button class="chip" type="button" data-act="pick" data-id="' + esc(u.id) + '">' + esc(u.nome) + '</button>'; });
       h += '</div>';
     }
-    h += '<div class="field"><label for="f-nome">Condominio</label><input id="f-nome" type="text" autocomplete="off" value="' + esc(k ? k.nome : '') + '" placeholder="Es. Cond. Aurora, via Roma 12"></div>' +
+    h += '<div class="field"><label for="f-nome">Appalto</label><input id="f-nome" type="text" autocomplete="off" value="' + esc(k ? k.nome : '') + '" placeholder="Es. Cond. Aurora, via Roma 12"></div>' +
       '<div class="field"><label for="f-ric">Ricavo ditta € al mese</label><input id="f-ric" type="text" inputmode="decimal" autocomplete="off" value="' + esc(k ? toInput(k.ricavo) : '') + '" placeholder="0"></div>' +
       '<div class="two"><div class="field"><label for="f-stip">Stipendio netto €</label><input id="f-stip" type="text" inputmode="decimal" autocomplete="off" value="' + esc(k ? toInput(k.stipendio) : '') + '" placeholder="0"></div>' +
       '<div class="field"><label for="f-lordo">Costo busta paga €</label><input id="f-lordo" type="text" inputmode="decimal" autocomplete="off" value="' + esc(k && !k.lm ? toInput(k.lordo) : '') + '" placeholder="come il netto"></div></div>' +
@@ -556,7 +556,7 @@ const firebaseConfig = {
       if (sibl.length > 1 && sibl[sibl.length - 1].id !== k.id) h += '<button class="btn block" type="button" data-act="save-next" style="background:var(--surface2);color:var(--ink);border:1px solid var(--line)">Salva e vai al prossimo</button>';
       h += '<div class="row2">';
       if (sel) h += '<button class="ghost" type="button" data-act="unassign-sheet">Togli dal pulitore</button>';
-      h += '<button class="ghost danger" type="button" data-act="del-condo">Elimina condominio</button></div>';
+      h += '<button class="ghost danger" type="button" data-act="del-condo">Elimina appaltio</button></div>';
     }
     h += '<button class="ghost block" type="button" data-act="close">Annulla</button>';
     openSheet(h);
@@ -573,8 +573,8 @@ const firebaseConfig = {
     var r = parseMoney(val('f-ric')), s = parseMoney(val('f-stip')), l = lordoVal(s);
     var el = document.getElementById('f-prev');
     if (!el) return;
-    if (isNaN(r) || isNaN(s) || isNaN(l)) { el.innerHTML = 'Utile su questo condominio: <b>–</b>'; return; }
-    el.innerHTML = 'Utile su questo condominio: <b class="' + negCls(r - l).trim() + '">' + eur(r - l) + '</b> al mese' +
+    if (isNaN(r) || isNaN(s) || isNaN(l)) { el.innerHTML = 'Utile su questo appalto: <b>–</b>'; return; }
+    el.innerHTML = 'Utile su questo appalto: <b class="' + negCls(r - l).trim() + '">' + eur(r - l) + '</b> al mese' +
       (l < s ? '<br><small>Il lordo è più basso del netto: controlla gli importi.</small>' : '');
   }
 
@@ -590,7 +590,7 @@ const firebaseConfig = {
       return;
     }
     var r = parseMoney(val('f-ric')), s = parseMoney(val('f-stip')), l = lordoVal(s);
-    if (!nome) { setErr('Scrivi il nome del condominio.'); return; }
+    if (!nome) { setErr('Scrivi il nome dell\u2019appalto.'); return; }
     if (isNaN(r) || isNaN(s) || isNaN(l)) { setErr('Gli importi vanno scritti come numeri, per esempio 450 oppure 450,50.'); return; }
     var data = { nome: nome, ricavo: r, stipendio: s, lordo: l, cleanerId: val('f-assign') };
     var q = sheet.id ? patch('condomini', sheet.id, data) : put('condomini', newId(), data);
@@ -762,16 +762,16 @@ const firebaseConfig = {
           (k.none ? '<span class="tag bad">nessun importo nel file</span>' : (k.part ? '<span class="tag bad">manca un importo</span>' : '')) +
           '</span><span class="ia">' + fmt(k.ricavo) + '<br>' + fmt(k.stipendio) + '</span></label>';
       });
-      body += '<details class="imp"><summary><span>' + esc(c.nome) + '</span><small>' + c.condos.length + (c.condos.length === 1 ? ' condominio' : ' condomini') +
+      body += '<details class="imp"><summary><span>' + esc(c.nome) + '</span><small>' + c.condos.length + (c.condos.length === 1 ? ' appaltio' : ' appalti') +
         (c.unassigned ? ' · senza pulitore' : (ex ? ' · già presente' : ' · nuovo')) + '</small></summary>' + rows + '</details>';
     });
-    h += '<p class="prev">Trovati <b>' + d.cleaners.length + (d.cleaners.length === 1 ? ' foglio' : ' fogli') + '</b> con <b>' + nk + ' condomini</b>' +
+    h += '<p class="prev">Trovati <b>' + d.cleaners.length + (d.cleaners.length === 1 ? ' foglio' : ' fogli') + '</b> con <b>' + nk + ' appalti</b>' +
       (dup ? ', di cui ' + dup + ' già presenti' : '') + '.' +
       (miss ? '<br><small>' + miss + ' righe hanno importi mancanti: controllale.</small>' : '') + '</p>';
     h += '<p class="hint">Per ogni riga vedi: ricavo sopra, stipendio netto sotto. Il costo busta paga (lordo) non c’è nel file: lo completi dopo, nell’app.</p>';
     h += body;
-    if (d.ignored.length) h += '<p class="hint">Fogli senza condomini, ignorati: ' + d.ignored.length + '.</p>';
-    h += '<label class="opt"><input type="checkbox" id="imp-upd"><span>Aggiorna ricavo e stipendio netto dei condomini già presenti</span></label>';
+    if (d.ignored.length) h += '<p class="hint">Fogli senza appalti, ignorati: ' + d.ignored.length + '.</p>';
+    h += '<label class="opt"><input type="checkbox" id="imp-upd"><span>Aggiorna ricavo e stipendio netto degli appalti già presenti</span></label>';
     h += '<button class="btn block" type="submit">Importa le righe spuntate</button><button class="ghost block" type="button" data-act="close">Annulla</button>';
     return h;
   }
@@ -781,7 +781,7 @@ const firebaseConfig = {
     file.arrayBuffer().then(readXlsx).then(function (sheets) {
       hideToast();
       var d = extractFromSheets(sheets);
-      if (!d.cleaners.length) { showToast('Non ho trovato condomini in questo file.', null, null, 8000); return; }
+      if (!d.cleaners.length) { showToast('Non ho trovato appalti in questo file.', null, null, 8000); return; }
       sheet = { type: 'import', data: d };
       openSheet(importSheetHtml(d));
     }).catch(function (err) {
@@ -846,7 +846,7 @@ const firebaseConfig = {
     closeSheet();
     if (!jobs.length) { showToast('Niente da importare: ' + (st.skip ? 'le righe scelte erano già presenti.' : 'non hai spuntato nessuna riga.'), null, null, 8000); return; }
     runJobs(jobs, function (n, tot) { showToast('Importo… ' + n + ' di ' + tot, null, null, 20000); }).then(function (r) {
-      var msg = 'Importati ' + st.added + (st.added === 1 ? ' condominio' : ' condomini') + (st.cl ? ' e ' + st.cl + (st.cl === 1 ? ' pulitore nuovo' : ' pulitori nuovi') : '') + '.';
+      var msg = 'Importati ' + st.added + (st.added === 1 ? ' appaltio' : ' appalti') + (st.cl ? ' e ' + st.cl + (st.cl === 1 ? ' pulitore nuovo' : ' pulitori nuovi') : '') + '.';
       if (st.upd) msg += ' Aggiornati ' + st.upd + '.';
       if (st.skip) msg += ' Saltati ' + st.skip + ' già presenti.';
       if (r.fail) msg += ' ' + r.fail + ' non salvati: riprova.';
@@ -1025,14 +1025,14 @@ const firebaseConfig = {
       return rows;
     }
     var condoCols = [{ w: 215, a: 'l' }, { w: 75, a: 'r' }, { w: 75, a: 'r' }, { w: 75, a: 'r' }, { w: 75, a: 'r' }];
-    var condoHead = ['Condominio', 'Ricavo', 'Netto', 'Lordo (busta)', 'Utile'];
+    var condoHead = ['Appalto', 'Ricavo', 'Netto', 'Lordo (busta)', 'Utile'];
     function heading(txt, right) {
       room(60);
       doc.text(PM, y + 12, txt, { b: 1, s: 12 });
       if (right) doc.text(PW - PM, y + 12, right, { s: 9, c: MUTED, a: 'r' });
       y += 20;
     }
-    function plural(n) { return n + (n === 1 ? ' condominio' : ' condomini'); }
+    function plural(n) { return n + (n === 1 ? ' appaltio' : ' appalti'); }
 
     page();
     var title = cleanerId ? groups[0].c.nome : 'Riepilogo generale';
@@ -1052,7 +1052,7 @@ const firebaseConfig = {
           return { c: [g.c.nome, String(g.list.length), pdfNum(t.r), pdfNum(t.s), pdfNum(t.l), pdfNum(t.u)], neg: { 5: t.u < 0 } };
         });
         rr.push({ c: ['Totale ditta', String(all.length), pdfNum(T.r), pdfNum(T.s), pdfNum(T.l), pdfNum(T.u)], b: 1, fill: TOTF, neg: { 5: T.u < 0 } });
-        table(cc, ['Pulitore', 'Cond.', 'Ricavo', 'Netto', 'Lordo (busta)', 'Utile'], rr);
+        table(cc, ['Pulitore', 'Appalti', 'Ricavo', 'Netto', 'Lordo (busta)', 'Utile'], rr);
       } else {
         doc.text(PM, y + 10, 'Nessun pulitore inserito.', { c: MUTED });
         y += 24;
@@ -1069,7 +1069,7 @@ const firebaseConfig = {
     } else if (all.length) {
       table(condoCols, condoHead, condoRows(all));
     } else {
-      doc.text(PM, y + 10, 'Nessun condominio assegnato.', { c: MUTED });
+      doc.text(PM, y + 10, 'Nessun appaltio assegnato.', { c: MUTED });
       y += 24;
     }
     if (hasLm) {
@@ -1178,7 +1178,7 @@ const firebaseConfig = {
         if (!sheet.arm) {
           sheet.arm = true;
           var n = condoOf(sheet.id).length;
-          el.textContent = n ? 'Tocca ancora: i suoi ' + n + ' condomini passano in Non assegnati' : 'Tocca ancora per eliminare';
+          el.textContent = n ? 'Tocca ancora: i suoi ' + n + ' appalti passano in Non assegnati' : 'Tocca ancora per eliminare';
           break;
         }
         var cidDel = sheet.id;

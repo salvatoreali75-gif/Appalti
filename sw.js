@@ -1,4 +1,4 @@
-var CACHE = "appalti-v4";
+var CACHE = "appalti-v5";
 var CORE = ["./", "index.html", "manifest.webmanifest", "icon-192.png", "icon-512.png", "apple-touch-icon.png"];
 var SHARED_HOSTS = ["www.gstatic.com", "fonts.gstatic.com", "fonts.googleapis.com"];
 self.addEventListener("install", function (e) {
