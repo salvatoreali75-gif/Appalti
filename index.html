@@ -286,6 +286,8 @@ details.imp summary small { color: var(--muted); font-weight: 600; white-space: 
 .drow small { color: var(--muted); }
 .field textarea { font-size: 16px; padding: 11px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); width: 100%; resize: vertical; }
 .irow b { display: block; font-size: 0.88rem; }
+.srch { font-size: 16px; padding: 11px 12px; min-height: 46px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); width: 100%; }
+.noresult { margin: 0; color: var(--muted); font-size: 0.9rem; }
 
 @media (min-width: 430px) {
   col.c-n { width: 64px; }
@@ -596,9 +598,11 @@ const firebaseConfig = {
     sheet = { type: 'condo', id: k ? k.id : null, arm: false };
     var h = '<h3>' + (k ? 'Modifica appalto' : 'Nuovo appalto') + '</h3>';
     var un = unassigned();
-    if (!k && cleanerId && un.length) {
-      h += '<div class="chips"><p>Assegna uno già inserito</p>';
-      un.forEach(function (u) { h += '<button class="chip" type="button" data-act="pick" data-id="' + esc(u.id) + '">' + esc(u.nome) + '</button>'; });
+    if (!k && cleanerId && state.condomini.length) {
+      var oth = state.condomini.filter(function (x) { return x.cleanerId !== cleanerId && find(state.cleaners, x.cleanerId); }).sort(byName);
+      h += '<div class="chips"><p>Assegna uno già inserito' + (oth.length ? ' (cerca anche tra quelli di altri)' : '') + '</p>' + srchBox() + noRes();
+      un.forEach(function (u) { h += '<button class="chip" type="button" data-s="' + esc(sKey(u.nome)) + '" data-act="pick" data-id="' + esc(u.id) + '">' + esc(u.nome) + '</button>'; });
+      oth.forEach(function (u) { h += '<button class="chip" type="button" data-more="1" style="display:none" data-s="' + esc(sKey(u.nome + ' ' + cname(u.cleanerId))) + '" data-act="pick" data-id="' + esc(u.id) + '">' + esc(u.nome) + ' · ' + esc(cname(u.cleanerId)) + '</button>'; });
       h += '</div>';
     }
     h += '<div class="field"><label for="f-nome">Appalto</label><input id="f-nome" type="text" autocomplete="off" value="' + esc(k ? k.nome : '') + '" placeholder="Es. Cond. Aurora, via Roma 12"></div>' +
@@ -1362,14 +1366,35 @@ const firebaseConfig = {
     return a;
   }
 
+  function sKey(s) { return wtoks(s).join(' '); }
+  function srchBox(ph) { return '<input type="search" class="srch" id="f-q" placeholder="' + esc(ph || 'Cerca appalto…') + '" autocomplete="off" autocapitalize="none" spellcheck="false" enterkeyhint="search">'; }
+  function noRes() { return '<p class="noresult" hidden>Nessun appalto trovato.</p>'; }
+  function filterList(inp) {
+    var q = wtoks(inp.value), scope = inp.closest('form') || document, shown = 0;
+    each(scope.querySelectorAll('[data-s]'), function (el) {
+      var hay = el.getAttribute('data-s'), ok = q.every(function (w) { return hay.indexOf(w) > -1; });
+      if (el.hasAttribute('data-more') && !q.length) ok = false;
+      el.style.display = ok ? '' : 'none';
+      if (ok) shown++;
+    });
+    each(scope.querySelectorAll('details[data-det]'), function (d) {
+      var any = Array.prototype.some.call(d.querySelectorAll('[data-s]'), function (e) { return e.style.display !== 'none'; });
+      d.style.display = any || !q.length ? '' : 'none';
+      if (q.length && any) d.open = true;
+    });
+    var em = scope.querySelector('.noresult');
+    if (em) em.hidden = shown > 0 || !q.length;
+  }
+  document.addEventListener('input', function (e) { if (e.target && e.target.classList && e.target.classList.contains('srch')) filterList(e.target); });
+
   function openDays(only) {
     sheet = { type: 'days', only: !!only };
     var list = state.condomini.slice().sort(byName).filter(function (k) { return !only || !k.giorni.length; });
-    var h = '<h3>Giorni degli appalti</h3><p class="hint">Tocca i giorni in cui si fa ogni appalto. Si salva da solo.</p>' +
+    var h = '<h3>Giorni degli appalti</h3><p class="hint">Tocca i giorni in cui si fa ogni appalto. Si salva da solo.</p>' + srchBox() + noRes() +
       '<div class="row2"><button type="button" class="ghost" data-act="days-filter" data-only="' + (only ? 0 : 1) + '">' + (only ? 'Mostra tutti' : 'Solo quelli senza giorni') + '</button></div>';
     if (!list.length) h += '<p class="none" style="padding:0">Nessun appalto da mostrare.</p>';
     list.forEach(function (k) {
-      h += '<div class="drow"><div><b>' + esc(k.nome) + '</b> <small>' + esc(cname(k.cleanerId) || 'non assegnato') + '</small></div><div class="dgrid">';
+      h += '<div class="drow" data-s="' + esc(sKey(k.nome + ' ' + cname(k.cleanerId))) + '"><div><b>' + esc(k.nome) + '</b> <small>' + esc(cname(k.cleanerId) || 'non assegnato') + '</small></div><div class="dgrid">';
       DOWS.forEach(function (n, i) {
         h += '<button type="button" class="dbtn' + (k.giorni.indexOf(i + 1) > -1 ? ' on' : '') + '" data-act="tg" data-id="' + esc(k.id) + '" data-d="' + (i + 1) + '">' + n + '</button>';
       });
@@ -1484,9 +1509,9 @@ const firebaseConfig = {
     var openIds = {};
     info.open.forEach(function (r) { openIds[r.k.id] = 1; });
     function row(k, extra) {
-      return '<label class="opt" style="padding:6px 0"><input type="checkbox" name="sc" value="' + esc(k.id) + '"><span>' + esc(k.nome) + (extra ? '<span class="tag">' + extra + '</span>' : '') + '</span></label>';
+      return '<label class="opt" style="padding:6px 0" data-s="' + esc(sKey(k.nome + ' ' + cname(k.cleanerId))) + '"><input type="checkbox" name="sc" value="' + esc(k.id) + '"><span>' + esc(k.nome) + (extra ? '<span class="tag">' + extra + '</span>' : '') + '</span></label>';
     }
-    var h = '<h3>Aggiungi scale alla squadra</h3>';
+    var h = '<h3>Aggiungi scale alla squadra</h3>' + srchBox() + noRes();
     if (info.open.length) {
       h += '<div><p class="hint">Ancora da assegnare</p>' + info.open.map(function (r) { return row(r.k, whyHtml(r)); }).join('') + '</div>';
     } else {
@@ -1494,7 +1519,7 @@ const firebaseConfig = {
     }
     var others = state.condomini.slice().sort(byName).filter(function (k) { return !openIds[k.id] && inOther[k.id] !== s.id; });
     if (others.length) {
-      h += '<details class="imp"><summary><span>Altri appalti</span><small>' + others.length + '</small></summary><div style="padding:6px 12px">' +
+      h += '<details class="imp" data-det="1"><summary><span>Altri appalti</span><small>' + others.length + '</small></summary><div style="padding:6px 12px">' +
         others.map(function (k) { return row(k, esc(cname(k.cleanerId) || 'non assegnato') + (inOther[k.id] ? ' · già in un’altra squadra' : '')); }).join('') + '</div></details>';
     }
     h += '<p class="err" id="f-err" role="alert"></p><button class="btn block" type="submit">Aggiungi</button><button class="ghost block" type="button" data-act="close">Annulla</button>';
@@ -1515,8 +1540,8 @@ const firebaseConfig = {
     info.rows.forEach(function (r) { on[r.k.id] = 1; });
     sheet = { type: 'extra' };
     var list = state.condomini.slice().sort(byName).filter(function (k) { return !on[k.id]; });
-    var h = '<h3>Appalto fuori programma</h3><p class="hint">Per ' + esc(longDate(ds)) + '. Tocca quello da aggiungere.</p><div class="chips">';
-    list.forEach(function (k) { h += '<button type="button" class="chip" data-act="addextra" data-id="' + esc(k.id) + '">' + esc(k.nome) + '</button>'; });
+    var h = '<h3>Appalto fuori programma</h3><p class="hint">Per ' + esc(longDate(ds)) + '. Cerca o tocca quello da aggiungere.</p>' + srchBox() + noRes() + '<div class="chips">';
+    list.forEach(function (k) { h += '<button type="button" class="chip" data-s="' + esc(sKey(k.nome + ' ' + cname(k.cleanerId))) + '" data-act="addextra" data-id="' + esc(k.id) + '">' + esc(k.nome) + '</button>'; });
     if (!list.length) h += '<p>Tutti gli appalti sono già in programma.</p>';
     h += '</div><button type="button" class="ghost block" data-act="close">Chiudi</button>';
     openSheet(h);
