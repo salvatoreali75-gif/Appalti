@@ -544,7 +544,7 @@ const firebaseConfig = {
     }
     var un = unassigned();
     if (un.length && state.page !== 'prog') h += looseCard(un);
-    h += '<div class="foot"><p class="hint">Collegato come ' + esc(state.user || '') + ' · versione 13</p><div class="row2"><button class="ghost" type="button" data-act="logout">Esci</button>';
+    h += '<div class="foot"><p class="hint">Collegato come ' + esc(state.user || '') + ' · versione 14</p><div class="row2"><button class="ghost" type="button" data-act="logout">Esci</button>';
     if ((state.cleaners.length || state.condomini.length) && state.page !== 'prog') {
       h += '<button class="ghost' + (state.wipeArm ? ' danger' : '') + '" type="button" data-act="wipe">' +
         (state.wipeArm ? 'Tocca ancora per eliminare tutto' : 'Elimina tutti i dati') + '</button>';
@@ -1215,16 +1215,33 @@ const firebaseConfig = {
     setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
     showToast('PDF pronto: lo trovi nei download del telefono.', null, null, 5000);
   }
-  // Sul telefono apre il menu Condividi (WhatsApp, email, Salva nei file...): il PDF resta un vero file.
+  // Sul telefono si sceglie: Condividi (WhatsApp, email, Salva nei file...) oppure Scarica sul telefono, senza inviare a nessuno.
+  // "done" scatta solo se il file viene davvero condiviso: scaricare non segna il programma come inviato.
   function saveFile(bytes, name, title, done) {
     var file = null;
     try { file = new File([bytes], name, { type: 'application/pdf' }); } catch (e) {}
     if (file && isTouch() && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
-      navigator.share({ files: [file], title: title }).then(function () { if (done) done(); }, function (err) { if (!err || err.name !== 'AbortError') { downloadFile(bytes, name); if (done) done(); } });
+      sheet = { type: 'pdfc', bytes: bytes, name: name, title: title, done: done, file: file };
+      openSheet('<h3>PDF pronto</h3><p class="hint">' + esc(name) + '</p>' +
+        '<button type="button" class="btn block" data-act="pdf-share">Condividi o invia</button>' +
+        '<button type="button" class="btn block" data-act="pdf-dl" style="background:var(--surface2);color:var(--ink);border:1px solid var(--line)">Scarica sul telefono</button>' +
+        '<p class="hint">Scaricare non lo invia a nessuno e non segna il programma come inviato.</p>' +
+        '<button type="button" class="ghost block" data-act="close">Annulla</button>');
       return;
     }
     downloadFile(bytes, name);
-    if (done) done();
+  }
+  function pdfShare() {
+    var o = sheet;
+    if (!o || o.type !== 'pdfc') return;
+    closeSheet();
+    navigator.share({ files: [o.file], title: o.title }).then(function () { if (o.done) o.done(); }, function (err) { if (!err || err.name !== 'AbortError') downloadFile(o.bytes, o.name); });
+  }
+  function pdfDownload() {
+    var o = sheet;
+    if (!o || o.type !== 'pdfc') return;
+    closeSheet();
+    downloadFile(o.bytes, o.name);
   }
   document.getElementById('xlsFile').addEventListener('change', function (e) {
     var f = e.target.files && e.target.files[0];
@@ -1503,6 +1520,20 @@ const firebaseConfig = {
         '<button class="ghost ' + (n ? 'ok' : 'bad') + '" type="button" data-act="assign" data-id="' + esc(r.k.id) + '">' + (n ? 'Squadra ' + n : 'Assegna') + '</button></div>';
     });
     h += '</section>';
+
+    // Non assegnati che oggi non sono in programma (senza giorni fissi o con altri giorni): si possono dare a una squadra per oggi
+    var inRows = {};
+    info.rows.forEach(function (r) { inRows[r.k.id] = 1; });
+    var pool = state.condomini.filter(function (k) { return !inRows[k.id] && !(k.cleanerId && find(state.cleaners, k.cleanerId)); }).sort(byName);
+    if (pool.length) {
+      h += '<details class="imp" id="poolDet"' + (state.pool ? ' open' : '') + '><summary><span>Altri non assegnati (non in programma oggi)</span><small>' + pool.length + '</small></summary>' +
+        '<p class="hint" style="padding:0 12px">Non hanno oggi tra i loro giorni. Tocca Assegna per farne uno oggi con una squadra.</p>';
+      pool.forEach(function (k) {
+        h += '<div class="irow"><div class="in"><b>' + esc(k.nome) + '</b><span class="tag">' + (k.giorni.length ? giorniText(k.giorni) : 'senza giorni') + '</span></div>' +
+          '<button class="ghost bad" type="button" data-act="assign" data-id="' + esc(k.id) + '">Assegna</button></div>';
+      });
+      h += '</details>';
+    }
 
     // Squadre
     var free = freeJolly(info, ds);
@@ -2272,6 +2303,8 @@ const firebaseConfig = {
       case 'save-next': if (sheet) { sheet.next = true; saveSheet(); } break;
       case 'import': document.getElementById('xlsFile').click(); break;
       case 'pdf-all': makePdf(null); break;
+      case 'pdf-share': pdfShare(); break;
+      case 'pdf-dl': pdfDownload(); break;
       case 'page':
         state.page = el.getAttribute('data-p') === 'prog' ? 'prog' : 'app';
         try { localStorage.setItem('appalti.page', state.page); } catch (e) {}
@@ -2388,7 +2421,7 @@ const firebaseConfig = {
     handle(el.getAttribute('data-act'), el);
   }
   document.addEventListener('click', onClick);
-  root.addEventListener('toggle', function (e) { if (e.target && e.target.id === 'allDet') state.det = e.target.open; }, true);
+  root.addEventListener('toggle', function (e) { if (e.target && e.target.id === 'allDet') state.det = e.target.open; if (e.target && e.target.id === 'poolDet') state.pool = e.target.open; }, true);
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && sheet) closeSheet(); });
 
   /* ---------- Accesso e avvio ---------- */
