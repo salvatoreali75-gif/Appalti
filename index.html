@@ -28,6 +28,7 @@
   --accent: #0E7C86;
   --accent-ink: #FFFFFF;
   --bad: #B3392B;
+  --good: #1F7A4D;
   --scrim: rgba(10, 24, 26, 0.5);
   --font-display: "Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-body: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -43,6 +44,7 @@
     --accent: #3CC0C9;
     --accent-ink: #062226;
     --bad: #FF8A7A;
+    --good: #5CD19A;
     --scrim: rgba(0, 0, 0, 0.6);
     color-scheme: dark;
   }
@@ -57,6 +59,7 @@
   --accent: #3CC0C9;
   --accent-ink: #062226;
   --bad: #FF8A7A;
+  --good: #5CD19A;
   --scrim: rgba(0, 0, 0, 0.6);
   color-scheme: dark;
 }
@@ -244,6 +247,46 @@ details.imp summary small { color: var(--muted); font-weight: 600; white-space: 
 .opt { display: flex; gap: 10px; align-items: flex-start; font-size: 0.88rem; }
 .opt input { width: 20px; height: 20px; accent-color: var(--accent); flex: none; margin-top: 1px; }
 
+.tabs { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 4px; }
+.tab { border: 0; background: transparent; min-height: 42px; border-radius: 10px; font-weight: 700; color: var(--muted); }
+.tab.on { background: var(--accent); color: var(--accent-ink); }
+.wnav { display: grid; grid-template-columns: 44px 1fr 44px auto; gap: 6px; align-items: center; }
+.wnav .ghost { min-height: 40px; }
+.wlab { text-align: center; font-weight: 700; font-size: 0.9rem; }
+.week { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.wd { border: 1px solid var(--line); background: var(--surface); border-radius: 12px; padding: 6px 0 7px; display: flex; flex-direction: column; align-items: center; gap: 3px; font-size: 0.68rem; color: var(--muted); font-weight: 600; min-width: 0; }
+.wd b { font-family: var(--font-display); font-size: 1.05rem; color: var(--ink); }
+.wd.sel { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); }
+.wd.today b { color: var(--accent); }
+.dot { min-width: 20px; height: 18px; border-radius: 9px; font-size: 0.68rem; font-weight: 700; font-style: normal; display: inline-flex; align-items: center; justify-content: center; padding: 0 5px; }
+.dot.ok { background: var(--good); color: #fff; }
+.dot.bad { background: var(--bad); color: #fff; }
+.dot.none { background: var(--surface2); color: var(--muted); }
+.dh { font-family: var(--font-display); font-weight: 800; font-size: 1.3rem; margin: 4px 0 0; }
+.srow { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; border-top: 1px solid var(--line); }
+.srow.tap { cursor: pointer; }
+.srow .t { min-width: 0; flex: 1; }
+.srow b { display: block; font-size: 0.92rem; overflow-wrap: anywhere; }
+.srow small { color: var(--muted); }
+.srow .ghost.bad { color: var(--bad); border-color: var(--bad); }
+.srow .ghost.ok { color: var(--good); border-color: var(--good); }
+.sq { border-top: 1px solid var(--line); }
+.sqh { display: flex; justify-content: space-between; align-items: center; gap: 10px; padding: 10px 14px 6px; }
+.sqh b { font-family: var(--font-display); font-size: 1.02rem; }
+.mem { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 14px 6px; }
+.mem span { background: var(--surface2); border: 1px solid var(--line); border-radius: 999px; padding: 4px 10px; font-size: 0.82rem; font-weight: 600; }
+.sq .srow { padding-block: 5px; }
+.pick { display: block; width: 100%; text-align: left; border: 1px solid var(--line); background: var(--bg); border-radius: 12px; padding: 11px 12px; font-weight: 700; }
+.pick small { display: block; color: var(--muted); font-weight: 500; }
+.dgrid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.dbtn { border: 1px solid var(--line); background: var(--bg); border-radius: 8px; min-height: 38px; font-weight: 700; font-size: 0.76rem; color: var(--muted); padding: 0; }
+.dbtn.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.drow { display: flex; flex-direction: column; gap: 6px; padding: 8px 0; border-top: 1px solid var(--line); }
+.drow b { font-size: 0.9rem; overflow-wrap: anywhere; }
+.drow small { color: var(--muted); }
+.field textarea { font-size: 16px; padding: 11px 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); width: 100%; resize: vertical; }
+.irow b { display: block; font-size: 0.88rem; }
+
 @media (min-width: 430px) {
   col.c-n { width: 64px; }
   td { font-size: 0.9rem; }
@@ -271,10 +314,11 @@ details.imp summary small { color: var(--muted); font-weight: 600; white-space: 
   <div class="top">
     <div>
       <h1>Appalti pulizie</h1>
-      <p class="sub">Importi mensili in euro. Tocca un appalto o i suoi importi per modificarli.</p>
+      <p class="sub" id="subTxt">Importi mensili in euro. Tocca un appalto o i suoi importi per modificarli.</p>
     </div>
-    <div class="hb"><button class="btn" type="button" data-act="add-condo" data-cleaner="" id="addCondoBtn">+ Appalto</button><button class="btn" type="button" data-act="add-cleaner" id="addCleanerBtn">+ Pulitore</button></div>
+    <div class="hb" id="topbtns"><button class="btn" type="button" data-act="add-condo" data-cleaner="" id="addCondoBtn">+ Appalto</button><button class="btn" type="button" data-act="add-cleaner" id="addCleanerBtn">+ Pulitore</button></div>
   </div>
+  <nav class="tabs" id="tabs" aria-label="Pagine"><button type="button" class="tab on" data-act="page" data-p="app">Appalti</button><button type="button" class="tab" data-act="page" data-p="prog">Programma</button></nav>
   <div id="root" class="wrap" style="gap:14px"></div>
 </main>
 <div id="sheetRoot"></div>
@@ -301,8 +345,9 @@ const firebaseConfig = {
   var sheetRoot = document.getElementById('sheetRoot');
   var toastEl = document.getElementById('toast');
   var db = null, auth = null;
-  var state = { cleaners: [], appalti: [], c: false, k: false, slow: false, denied: false, local: false, wipeArm: false, user: '' };
+  var state = { cleaners: [], condomini: [], assenze: [], programma: [], c: false, k: false, pa: false, pp: false, perr: false, slow: false, denied: false, local: false, wipeArm: false, user: '', det: false, page: savedPage(), date: dstr(new Date()) };
   var sheet = null;
+  function savedPage() { try { return localStorage.getItem('appalti.page') === 'prog' ? 'prog' : 'app'; } catch (e) { return 'app'; } }
   var toastTimer = null;
 
   var nf0 = new Intl.NumberFormat('it-IT', { maximumFractionDigits: 0 });
@@ -335,7 +380,7 @@ const firebaseConfig = {
   function find(list, id) { for (var i = 0; i < list.length; i++) if (list[i].id === id) return list[i]; return null; }
 
   /* ---------- Dati: db se disponibile, altrimenti solo in memoria ---------- */
-  function listFor(col) { return col === 'cleaners' ? state.cleaners : state.condomini; }
+  function listFor(col) { return state[col]; }
   function put(col, id, data) {
     if (db) return db.collection(col).doc(id).set(data);
     var list = listFor(col), o = { id: id }, k;
@@ -366,13 +411,14 @@ const firebaseConfig = {
 
   function mapCleaner(d) {
     var o = d.data() || {};
-    return { id: d.id, nome: String(o.nome || ''), ordine: Number(o.ordine) || 0 };
+    return { id: d.id, nome: String(o.nome || ''), ordine: Number(o.ordine) || 0, jolly: !!o.jolly };
   }
   function mapCondo(d) {
     var o = d.data() || {};
     var net = Number(o.stipendio) || 0;
     var lm = (o.lordo === undefined || o.lordo === null);
-    return { id: d.id, nome: String(o.nome || ''), ricavo: Number(o.ricavo) || 0, stipendio: net, lordo: lm ? net : (Number(o.lordo) || 0), lm: lm, cleanerId: String(o.cleanerId || '') };
+    return { id: d.id, nome: String(o.nome || ''), ricavo: Number(o.ricavo) || 0, stipendio: net, lordo: lm ? net : (Number(o.lordo) || 0), lm: lm, cleanerId: String(o.cleanerId || ''),
+      giorni: (Array.isArray(o.giorni) ? o.giorni : []).map(Number).filter(function (n) { return n >= 1 && n <= 7; }) };
   }
 
   /* ---------- Calcoli ---------- */
@@ -412,7 +458,7 @@ const firebaseConfig = {
         '<thead><tr><th class="l">Appalto</th><th>Ricavo</th><th>Netto</th><th>Lordo</th><th>Utile</th><th></th></tr></thead><tbody>';
       list.forEach(function (k) {
         var u = round2(k.ricavo - k.lordo);
-        h += '<tr class="clk" data-act="edit-condo" data-id="' + esc(k.id) + '"><td class="nm"><button class="rowbtn" type="button" data-act="edit-condo" data-id="' + esc(k.id) + '">' + esc(k.nome) + '</button></td>' +
+        h += '<tr class="clk" data-act="edit-condo" data-id="' + esc(k.id) + '"><td class="nm"><button class="rowbtn" type="button" data-act="edit-condo" data-id="' + esc(k.id) + '">' + esc(k.nome) + '</button>' + (k.giorni.length ? '<span class="tag" style="padding-bottom:4px">' + giorniText(k.giorni) + '</span>' : '') + '</td>' +
           '<td>' + fmt(k.ricavo) + '</td><td>' + fmt(k.stipendio) + '</td><td' + (k.lm ? ' class="lm"' : '') + '>' + fmt(k.lordo) + '</td><td class="u' + negCls(u) + '">' + fmt(u) + '</td>' +
           '<td class="x"><button class="xbtn" type="button" data-act="unassign" data-id="' + esc(k.id) + '" aria-label="Togli ' + esc(k.nome) + ' da ' + esc(c.nome) + '">×</button></td></tr>';
       });
@@ -459,20 +505,31 @@ const firebaseConfig = {
       return;
     }
     var h = '';
+    each(document.querySelectorAll('#tabs .tab'), function (b) { b.classList.toggle('on', b.getAttribute('data-p') === state.page); });
+    document.getElementById('topbtns').style.display = state.page === 'prog' ? 'none' : '';
+    document.getElementById('subTxt').textContent = state.page === 'prog' ? 'Chi copre le scale scoperte, giorno per giorno.' : 'Importi mensili in euro. Tocca un appalto o i suoi importi per modificarli.';
     if (state.local) h += '<p class="note">Il salvataggio non è attivo in questa vista: i dati restano solo finché la pagina è aperta.</p>';
-    if (!state.cleaners.length) {
+    if (state.page === 'prog') {
+      h += progHtml();
+    } else if (!state.cleaners.length) {
       h += emptyHtml();
     } else {
       h += summaryHtml();
       h += '<div class="tools"><button class="ghost" type="button" data-act="import">Importa da Excel</button><button class="ghost" type="button" data-act="pdf-all">PDF generale</button></div>';
       var nlm = state.condomini.filter(function (k) { return k.lm; }).length;
       if (nlm) h += '<p class="note">Per ' + nlm + (nlm === 1 ? ' appalto' : ' appalti') + ' manca ancora il costo busta paga (numero in corsivo): per ora uso lo stipendio netto.</p>';
-      state.cleaners.forEach(function (c) { h += cleanerCard(c); });
+      state.cleaners.forEach(function (c) { if (!(c.jolly && !condoOf(c.id).length)) h += cleanerCard(c); });
+      var jls = state.cleaners.filter(function (c) { return c.jolly && !condoOf(c.id).length; });
+      if (jls.length) {
+        h += '<section class="card"><div class="chead"><div><h2>Jolly</h2><p class="meta">Fanno le squadre nella pagina Programma</p></div></div><div class="chips" style="padding:0 14px 12px">';
+        jls.forEach(function (c) { h += '<button class="chip" type="button" data-act="edit-cleaner" data-id="' + esc(c.id) + '">' + esc(c.nome) + '</button>'; });
+        h += '</div></section>';
+      }
     }
     var un = unassigned();
-    if (un.length) h += looseCard(un);
+    if (un.length && state.page !== 'prog') h += looseCard(un);
     h += '<div class="foot"><p class="hint">Collegato come ' + esc(state.user || '') + '</p><div class="row2"><button class="ghost" type="button" data-act="logout">Esci</button>';
-    if (state.cleaners.length || state.condomini.length) {
+    if ((state.cleaners.length || state.condomini.length) && state.page !== 'prog') {
       h += '<button class="ghost' + (state.wipeArm ? ' danger' : '') + '" type="button" data-act="wipe">' +
         (state.wipeArm ? 'Tocca ancora per eliminare tutto' : 'Elimina tutti i dati') + '</button>';
     }
@@ -516,6 +573,7 @@ const firebaseConfig = {
     sheet = { type: 'cleaner', id: c ? c.id : null, arm: false };
     var h = '<h3>' + (c ? 'Modifica pulitore' : 'Nuovo pulitore') + '</h3>' +
       '<div class="field"><label for="f-nome">Nome</label><input id="f-nome" type="text" autocomplete="off" value="' + esc(c ? c.nome : '') + '" placeholder="Es. Marco Rossi"></div>' +
+      '<label class="opt"><input type="checkbox" id="f-jolly"' + (c && c.jolly ? ' checked' : '') + '><span>È un jolly: fa le squadre nei giorni con scale scoperte</span></label>' +
       '<p class="err" id="f-err" role="alert"></p>' +
       '<button class="btn block" type="submit">Salva</button>';
     if (c) h += '<button class="ghost danger block" type="button" data-act="del-cleaner">Elimina pulitore</button>';
@@ -548,6 +606,7 @@ const firebaseConfig = {
       '<div class="two"><div class="field"><label for="f-stip">Stipendio netto €</label><input id="f-stip" type="text" inputmode="decimal" autocomplete="off" value="' + esc(k ? toInput(k.stipendio) : '') + '" placeholder="0"></div>' +
       '<div class="field"><label for="f-lordo">Costo busta paga €</label><input id="f-lordo" type="text" inputmode="decimal" autocomplete="off" value="' + esc(k && !k.lm ? toInput(k.lordo) : '') + '" placeholder="come il netto"></div></div>' +
       '<p class="hint">Il costo busta paga è il lordo, cioè quanto costa il pulitore alla ditta. Se lo lasci vuoto uso il netto.</p>' +
+      daysField(k ? k.giorni : []) +
       '<div class="field"><label for="f-assign">Assegnato a</label><select id="f-assign">' + cleanerOptions(sel) + '</select></div>' +
       '<p class="prev" id="f-prev"></p><p class="err" id="f-err" role="alert"></p>' +
       '<button class="btn block" type="submit">Salva</button>';
@@ -581,10 +640,16 @@ const firebaseConfig = {
   function saveSheet() {
     if (!sheet) return;
     if (sheet.type === 'import') { doImport(); return; }
+    if (sheet.type === 'abs') { saveAbs(); return; }
+    if (sheet.type === 'squad') { saveSquad(); return; }
+    if (sheet.type === 'sqscale') { saveSqScale(); return; }
+    if (sheet.type === 'jolly') { saveJolly(); return; }
+    if (sheet.type !== 'condo' && sheet.type !== 'cleaner') return;
     var nome = val('f-nome').trim();
     if (sheet.type === 'cleaner') {
       if (!nome) { setErr('Scrivi il nome del pulitore.'); return; }
-      var p = sheet.id ? patch('cleaners', sheet.id, { nome: nome }) : put('cleaners', newId(), { nome: nome, ordine: Date.now() });
+      var jl = !!(document.getElementById('f-jolly') || {}).checked;
+      var p = sheet.id ? patch('cleaners', sheet.id, { nome: nome, jolly: jl }) : put('cleaners', newId(), { nome: nome, ordine: Date.now(), jolly: jl });
       closeSheet();
       guard(p);
       return;
@@ -592,7 +657,7 @@ const firebaseConfig = {
     var r = parseMoney(val('f-ric')), s = parseMoney(val('f-stip')), l = lordoVal(s);
     if (!nome) { setErr('Scrivi il nome dell\u2019appalto.'); return; }
     if (isNaN(r) || isNaN(s) || isNaN(l)) { setErr('Gli importi vanno scritti come numeri, per esempio 450 oppure 450,50.'); return; }
-    var data = { nome: nome, ricavo: r, stipendio: s, lordo: l, cleanerId: val('f-assign') };
+    var data = { nome: nome, ricavo: r, stipendio: s, lordo: l, cleanerId: val('f-assign'), giorni: readDays() };
     var q = sheet.id ? patch('condomini', sheet.id, data) : put('condomini', newId(), data);
     var nextId = null;
     if (sheet.id && sheet.next) {
@@ -956,7 +1021,7 @@ const firebaseConfig = {
       if (!c0) return null;
       groups.push({ c: c0, list: condoOf(c0.id) });
     } else {
-      state.cleaners.forEach(function (c) { groups.push({ c: c, list: condoOf(c.id) }); });
+      state.cleaners.forEach(function (c) { var l = condoOf(c.id); if (!(c.jolly && !l.length)) groups.push({ c: c, list: l }); });
       un = unassigned();
     }
     groups.forEach(function (g) { all = all.concat(g.list); });
@@ -1092,18 +1157,522 @@ const firebaseConfig = {
     if (!rep) { showToast('Non sono riuscito a creare il PDF.'); return; }
     var iso = new Date().toISOString().slice(0, 10);
     var name = cleanerId ? 'Appalti_' + slug(rep.title) + '_' + iso + '.pdf' : 'Appalti_riepilogo_' + iso + '.pdf';
-    var url = URL.createObjectURL(new Blob([rep.bytes], { type: 'application/pdf' }));
+    saveFile(rep.bytes, name, rep.title + ' - Appalti pulizie');
+  }
+  function isTouch() {
+    var ua = navigator.userAgent || '';
+    return !!((window.matchMedia && window.matchMedia('(pointer: coarse)').matches) || (navigator.userAgentData && navigator.userAgentData.mobile) || /Android|iPhone|iPad|iPod/i.test(ua));
+  }
+  function downloadFile(bytes, name) {
+    var url = URL.createObjectURL(new Blob([bytes], { type: 'application/pdf' }));
     var a = document.createElement('a');
     a.href = url; a.download = name;
     document.body.appendChild(a); a.click(); a.remove();
     setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
     showToast('PDF pronto: lo trovi nei download del telefono.', null, null, 5000);
   }
+  // Sul telefono apre il menu Condividi (WhatsApp, email, Salva nei file...): il PDF resta un vero file.
+  function saveFile(bytes, name, title) {
+    var file = null;
+    try { file = new File([bytes], name, { type: 'application/pdf' }); } catch (e) {}
+    if (file && isTouch() && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file], title: title }).catch(function (err) { if (!err || err.name !== 'AbortError') downloadFile(bytes, name); });
+      return;
+    }
+    downloadFile(bytes, name);
+  }
   document.getElementById('xlsFile').addEventListener('change', function (e) {
     var f = e.target.files && e.target.files[0];
     e.target.value = '';
     if (f) loadXlsx(f);
   });
+
+  /* ---------- Programma: giorni, assenze, squadre ---------- */
+  var DOWS = ['Lun', 'Mar', 'Mer', 'Gio', 'Ven', 'Sab', 'Dom'];
+  var DOWL = ['lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato', 'domenica'];
+  var MONS = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
+  var MONS3 = ['gen', 'feb', 'mar', 'apr', 'mag', 'giu', 'lug', 'ago', 'set', 'ott', 'nov', 'dic'];
+  function z2(n) { return (n < 10 ? '0' : '') + n; }
+  function dstr(d) { return d.getFullYear() + '-' + z2(d.getMonth() + 1) + '-' + z2(d.getDate()); }
+  function pdate(s) { var p = String(s).split('-'); return new Date(+p[0], +p[1] - 1, +p[2], 12); }
+  function addDays(s, n) { var d = pdate(s); d.setDate(d.getDate() + n); return dstr(d); }
+  function isoDow(s) { return (pdate(s).getDay() + 6) % 7 + 1; }
+  function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+  function longDate(s) { var d = pdate(s); return DOWL[isoDow(s) - 1] + ' ' + d.getDate() + ' ' + MONS[d.getMonth()]; }
+  function shortDate(s) { var d = pdate(s); return d.getDate() + '/' + (d.getMonth() + 1); }
+  function weekStart(s) { return addDays(s, 1 - isoDow(s)); }
+  function weekLabel(ws) {
+    var a = pdate(ws), b = pdate(addDays(ws, 6));
+    return a.getDate() + ' ' + MONS3[a.getMonth()] + ' – ' + b.getDate() + ' ' + MONS3[b.getMonth()];
+  }
+  function giorniText(a) { return a.slice().sort().map(function (n) { return DOWS[n - 1]; }).join(' · '); }
+  function cname(id) { var c = find(state.cleaners, id); return c ? c.nome : ''; }
+  function arr(v) { return Array.isArray(v) ? v.map(String) : []; }
+
+  function mapAssenza(d) {
+    var o = d.data() || {};
+    return { id: d.id, cleanerId: String(o.cleanerId || ''), dal: String(o.dal || ''), al: String(o.al || o.dal || ''), tipo: o.tipo === 'malattia' ? 'malattia' : 'assenza' };
+  }
+  function mapDay(d) {
+    var o = d.data() || {};
+    var sq = Array.isArray(o.squadre) ? o.squadre : [];
+    return {
+      id: d.id,
+      squadre: sq.map(function (s) { s = s || {}; return { id: String(s.id || ''), membri: arr(s.membri), appalti: arr(s.appalti) }; }),
+      extra: arr(o.extra), saltati: arr(o.saltati)
+    };
+  }
+  function dayDoc(ds) { return find(state.programma, ds) || { id: ds, squadre: [], extra: [], saltati: [] }; }
+  function cloneDay(ds) {
+    var p = dayDoc(ds);
+    return {
+      squadre: p.squadre.map(function (s) { return { id: s.id, membri: s.membri.slice(), appalti: s.appalti.slice() }; }),
+      extra: p.extra.slice(), saltati: p.saltati.slice()
+    };
+  }
+  function absenceOf(cid, ds) {
+    for (var i = 0; i < state.assenze.length; i++) {
+      var a = state.assenze[i];
+      if (a.cleanerId === cid && a.dal <= ds && ds <= a.al) return a;
+    }
+    return null;
+  }
+  function squadOf(day, kid) {
+    for (var i = 0; i < day.squadre.length; i++) {
+      var s = day.squadre[i];
+      if (s.appalti.indexOf(kid) > -1 && s.membri.some(function (m) { return find(state.cleaners, m); })) return s;
+    }
+    return null;
+  }
+  function dayInfo(ds) {
+    var day = dayDoc(ds), wd = isoDow(ds), rows = [];
+    state.condomini.forEach(function (k) {
+      var planned = k.giorni.indexOf(wd) > -1, extra = day.extra.indexOf(k.id) > -1;
+      if (!planned && !extra) return;
+      var t = k.cleanerId ? find(state.cleaners, k.cleanerId) : null;
+      var ab = t ? absenceOf(t.id, ds) : null;
+      rows.push({ k: k, t: t, ab: ab, sq: squadOf(day, k.id), skipped: day.saltati.indexOf(k.id) > -1, extra: extra && !planned, uncovered: !t || !!ab });
+    });
+    rows.sort(function (a, b) { return byName(a.k, b.k); });
+    var active = rows.filter(function (r) { return !r.skipped; });
+    var abs = state.assenze.filter(function (a) { return a.dal <= ds && ds <= a.al && find(state.cleaners, a.cleanerId); });
+    return { day: day, rows: rows, active: active, open: active.filter(function (r) { return r.uncovered && !r.sq; }), abs: abs };
+  }
+  function dayStatus(ds) {
+    var i = dayInfo(ds);
+    if (!i.active.length) return { c: 'none', t: '–' };
+    return i.open.length ? { c: 'bad', t: String(i.open.length) } : { c: 'ok', t: '✓' };
+  }
+  function whyHtml(r) {
+    return r.ab ? esc(r.t.nome) + ' · ' + (r.ab.tipo === 'malattia' ? 'in malattia' : 'assente') : 'Non assegnato';
+  }
+  function freeJolly(info, ds) {
+    var busy = {};
+    info.day.squadre.forEach(function (s) { s.membri.forEach(function (m) { busy[m] = 1; }); });
+    return state.cleaners.filter(function (c) { return c.jolly && !busy[c.id] && !absenceOf(c.id, ds); });
+  }
+
+  function progHtml() {
+    if (!(state.pa && state.pp)) {
+      return state.perr ? '<p class="note">Non riesco a leggere il programma. Controlla la connessione e riapri la pagina.</p>' : '<p class="note">Carico il programma…</p>';
+    }
+    var ds = state.date, info = dayInfo(ds), ws = weekStart(ds), today = dstr(new Date()), h = '', i;
+    h += '<div class="wnav"><button class="ghost" type="button" data-act="wk" data-n="-7" aria-label="Settimana precedente">‹</button><div class="wlab">' + esc(weekLabel(ws)) +
+      '</div><button class="ghost" type="button" data-act="wk" data-n="7" aria-label="Settimana successiva">›</button><button class="ghost" type="button" data-act="today">Oggi</button></div>';
+    h += '<div class="week">';
+    for (i = 0; i < 7; i++) {
+      var d = addDays(ws, i), st = dayStatus(d);
+      h += '<button type="button" class="wd' + (d === ds ? ' sel' : '') + (d === today ? ' today' : '') + '" data-act="day" data-date="' + d + '" aria-label="' + esc(longDate(d)) + '"><span>' + DOWS[i] + '</span><b>' + pdate(d).getDate() + '</b><i class="dot ' + st.c + '">' + st.t + '</i></button>';
+    }
+    h += '</div>';
+    h += '<h2 class="dh">' + esc(cap(longDate(ds))) + '</h2>';
+    var nog = state.condomini.filter(function (k) { return !k.giorni.length; }).length;
+    if (!state.condomini.length) h += '<p class="note">Non ci sono ancora appalti: aggiungili nella pagina Appalti, poi indica i giorni in cui si fanno.</p>';
+    else if (nog) h += '<p class="note">Per ' + nog + (nog === 1 ? ' appalto' : ' appalti') + ' non sono ancora indicati i giorni, quindi non compaiono nel calendario.<br><button class="ghost" type="button" data-act="days" data-only="1" style="margin-top:8px">Imposta i giorni</button></p>';
+
+    // Assenti
+    h += '<section class="card"><div class="chead"><div><h2>Assenti</h2><p class="meta">' + (info.abs.length ? info.abs.length + ' in questo giorno' : 'Nessuno in questo giorno') + '</p></div></div>';
+    info.abs.forEach(function (a) {
+      h += '<div class="srow tap" data-act="edit-abs" data-id="' + esc(a.id) + '"><div class="t"><b>' + esc(cname(a.cleanerId)) + '</b><small>' + (a.tipo === 'malattia' ? 'Malattia' : 'Assenza') + ' · ' +
+        (a.dal === a.al ? shortDate(a.dal) : shortDate(a.dal) + ' – ' + shortDate(a.al)) + '</small></div><button class="ghost" type="button" data-act="edit-abs" data-id="' + esc(a.id) + '">Modifica</button></div>';
+    });
+    h += '<button class="addrow" type="button" data-act="add-abs">+ Segna assenza o malattia</button></section>';
+
+    // Scale da coprire
+    var unc = info.active.filter(function (r) { return r.uncovered; });
+    h += '<section class="card"><div class="chead"><div><h2>Scale da coprire</h2><p class="meta">' +
+      (info.active.length ? (unc.length ? unc.length + (unc.length === 1 ? ' scoperta' : ' scoperte') + ', ' + info.open.length + ' da assegnare' : 'Tutto coperto') : 'Nessun appalto in programma') + '</p></div></div>';
+    if (!unc.length) h += '<p class="none">' + (info.active.length ? 'Ogni appalto di questo giorno ha il suo pulitore.' : 'Per questo giorno non ci sono appalti.') + '</p>';
+    unc.forEach(function (r) {
+      var n = r.sq ? info.day.squadre.indexOf(r.sq) + 1 : 0;
+      h += '<div class="srow"><div class="t"><b>' + esc(r.k.nome) + '</b><small>' + whyHtml(r) + '</small></div>' +
+        '<button class="ghost ' + (n ? 'ok' : 'bad') + '" type="button" data-act="assign" data-id="' + esc(r.k.id) + '">' + (n ? 'Squadra ' + n : 'Assegna') + '</button></div>';
+    });
+    h += '</section>';
+
+    // Squadre
+    var free = freeJolly(info, ds);
+    h += '<section class="card"><div class="chead"><div><h2>Squadre</h2><p class="meta">' +
+      (state.cleaners.some(function (c) { return c.jolly; }) ? 'Liberi: ' + (free.length ? esc(free.map(function (c) { return c.nome; }).join(', ')) : 'nessuno') : 'Nessun jolly indicato: tocca Gestisci jolly') + '</p></div></div>';
+    info.day.squadre.forEach(function (s, si) {
+      var nm = s.membri.map(cname).filter(Boolean);
+      h += '<div class="sq"><div class="sqh"><b>Squadra ' + (si + 1) + '</b><button class="ghost" type="button" data-act="edit-sq" data-id="' + esc(s.id) + '">Persone</button></div>';
+      h += nm.length ? '<div class="mem">' + nm.map(function (n) { return '<span>' + esc(n) + '</span>'; }).join('') + '</div>' : '<p class="err" style="padding:0 14px 6px">Nessuna persona: tocca Persone.</p>';
+      s.appalti.forEach(function (kid) {
+        var k = find(state.condomini, kid);
+        if (!k) return;
+        h += '<div class="srow"><div class="t"><b>' + esc(k.nome) + '</b></div><button class="xbtn" type="button" data-act="sq-remove" data-id="' + esc(kid) + '" data-sq="' + esc(s.id) + '" aria-label="Togli ' + esc(k.nome) + ' dalla squadra">×</button></div>';
+      });
+      h += '<button class="addrow" type="button" data-act="sq-add" data-id="' + esc(s.id) + '">+ Aggiungi scale</button></div>';
+    });
+    h += '<button class="addrow" type="button" data-act="new-sq">+ Nuova squadra</button></section>';
+
+    // Tutti gli appalti del giorno
+    h += '<details class="imp" id="allDet"' + (state.det ? ' open' : '') + '><summary><span>Tutti gli appalti del giorno</span><small>' + info.rows.length + '</small></summary>';
+    info.rows.forEach(function (r) {
+      h += '<div class="irow"><div class="in"><b>' + esc(r.k.nome) + '</b><span class="tag' + (r.skipped ? ' bad' : '') + '">' +
+        (r.t ? esc(r.t.nome) : 'Non assegnato') + (r.extra ? ' · aggiunto per oggi' : '') + (r.skipped ? ' · non si fa oggi' : '') + '</span></div>' +
+        '<button class="ghost" type="button" data-act="skip" data-id="' + esc(r.k.id) + '">' + (r.skipped ? 'Ripristina' : 'Non si fa') + '</button></div>';
+    });
+    h += '<button class="addrow" type="button" data-act="extra">+ Aggiungi un appalto fuori programma</button></details>';
+
+    h += '<div class="tools"><button class="ghost" type="button" data-act="prog-pdf">PDF del giorno</button><button class="ghost" type="button" data-act="prog-text">Invia testo</button>' +
+      '<button class="ghost" type="button" data-act="jolly">Gestisci jolly</button><button class="ghost" type="button" data-act="days" data-only="0">Giorni degli appalti</button></div>';
+    return h;
+  }
+
+  /* --- schede --- */
+  function daysField(sel) {
+    var h = '<div class="field"><label>Giorni in cui si fa</label><div class="dgrid" id="f-days">';
+    DOWS.forEach(function (n, i) {
+      h += '<button type="button" class="dbtn' + (sel.indexOf(i + 1) > -1 ? ' on' : '') + '" data-act="tgf" data-d="' + (i + 1) + '">' + n + '</button>';
+    });
+    return h + '</div></div>';
+  }
+  function readDays() {
+    var a = [];
+    each(document.querySelectorAll('#f-days .dbtn.on'), function (b) { a.push(+b.getAttribute('data-d')); });
+    return a;
+  }
+
+  function openDays(only) {
+    sheet = { type: 'days', only: !!only };
+    var list = state.condomini.slice().sort(byName).filter(function (k) { return !only || !k.giorni.length; });
+    var h = '<h3>Giorni degli appalti</h3><p class="hint">Tocca i giorni in cui si fa ogni appalto. Si salva da solo.</p>' +
+      '<div class="row2"><button type="button" class="ghost" data-act="days-filter" data-only="' + (only ? 0 : 1) + '">' + (only ? 'Mostra tutti' : 'Solo quelli senza giorni') + '</button></div>';
+    if (!list.length) h += '<p class="none" style="padding:0">Nessun appalto da mostrare.</p>';
+    list.forEach(function (k) {
+      h += '<div class="drow"><div><b>' + esc(k.nome) + '</b> <small>' + esc(cname(k.cleanerId) || 'non assegnato') + '</small></div><div class="dgrid">';
+      DOWS.forEach(function (n, i) {
+        h += '<button type="button" class="dbtn' + (k.giorni.indexOf(i + 1) > -1 ? ' on' : '') + '" data-act="tg" data-id="' + esc(k.id) + '" data-d="' + (i + 1) + '">' + n + '</button>';
+      });
+      h += '</div></div>';
+    });
+    h += '<button type="button" class="btn block" data-act="close">Fatto</button>';
+    openSheet(h);
+  }
+
+  function openAbs(id) {
+    var a = id ? find(state.assenze, id) : null, ds = state.date;
+    sheet = { type: 'abs', id: a ? a.id : null, arm: false };
+    var opts = '<option value="">Scegli…</option>' + state.cleaners.slice().sort(byName).map(function (c) {
+      return '<option value="' + esc(c.id) + '"' + (a && a.cleanerId === c.id ? ' selected' : '') + '>' + esc(c.nome) + '</option>';
+    }).join('');
+    var h = '<h3>' + (a ? 'Modifica assenza' : 'Nuova assenza') + '</h3>' +
+      '<div class="field"><label for="f-cl">Chi</label><select id="f-cl">' + opts + '</select></div>' +
+      '<div class="field"><label for="f-tipo">Motivo</label><select id="f-tipo"><option value="assenza"' + (a && a.tipo === 'assenza' ? ' selected' : '') + '>Assenza</option><option value="malattia"' + (a && a.tipo === 'malattia' ? ' selected' : '') + '>Malattia</option></select></div>' +
+      '<div class="two"><div class="field"><label for="f-dal">Dal</label><input id="f-dal" type="date" value="' + (a ? a.dal : ds) + '"></div>' +
+      '<div class="field"><label for="f-al">Al (compreso)</label><input id="f-al" type="date" value="' + (a ? a.al : ds) + '"></div></div>' +
+      '<p class="hint">Se è un solo giorno, lascia la stessa data. I suoi appalti diventano scoperti in quei giorni.</p>' +
+      '<p class="err" id="f-err" role="alert"></p><button class="btn block" type="submit">Salva</button>';
+    if (a) h += '<button class="ghost danger block" type="button" data-act="del-abs">Elimina assenza</button>';
+    h += '<button class="ghost block" type="button" data-act="close">Annulla</button>';
+    openSheet(h);
+  }
+  function saveAbs() {
+    var cid = val('f-cl'), dal = val('f-dal'), al = val('f-al'), tipo = val('f-tipo') === 'malattia' ? 'malattia' : 'assenza';
+    if (!cid) { setErr('Scegli chi è assente.'); return; }
+    if (!dal || !al) { setErr('Indica le date.'); return; }
+    if (al < dal) { setErr('La data finale è prima di quella iniziale.'); return; }
+    var id = sheet.id || newId();
+    closeSheet();
+    var n = 0, chain = Promise.resolve(put('assenze', id, { cleanerId: cid, dal: dal, al: al, tipo: tipo }));
+    state.programma.forEach(function (p) {
+      if (p.id < dal || p.id > al) return;
+      var d = cloneDay(p.id), ch = false;
+      d.squadre.forEach(function (s) { var i = s.membri.indexOf(cid); if (i > -1) { s.membri.splice(i, 1); ch = true; } });
+      if (ch) { n++; chain = chain.then(function () { return put('programma', p.id, d); }); }
+    });
+    guard(chain);
+    if (n) showToast(cname(cid) + ' è stato tolto dalle squadre dei giorni di assenza.', null, null, 6000);
+  }
+
+  function openSquad(sqId, pending) {
+    var ds = state.date, day = dayDoc(ds), s = sqId ? find(day.squadre, sqId) : null, busy = {};
+    sheet = { type: 'squad', id: s ? s.id : null, pending: pending || null, arm: false };
+    day.squadre.forEach(function (x) { if (!s || x.id !== s.id) x.membri.forEach(function (m) { busy[m] = 1; }); });
+    var avail = state.cleaners.filter(function (c) { return !absenceOf(c.id, ds) && !busy[c.id]; });
+    function rows(list) {
+      return list.map(function (c) {
+        return '<label class="opt" style="padding:6px 0"><input type="checkbox" name="mem" value="' + esc(c.id) + '"' + (s && s.membri.indexOf(c.id) > -1 ? ' checked' : '') + '><span>' + esc(c.nome) + '</span></label>';
+      }).join('');
+    }
+    var jl = avail.filter(function (c) { return c.jolly; }), ot = avail.filter(function (c) { return !c.jolly; });
+    var otOpen = !!(s && ot.some(function (c) { return s.membri.indexOf(c.id) > -1; })) || !jl.length;
+    var h = '<h3>' + (s ? 'Persone della squadra' : 'Nuova squadra') + '</h3><p class="hint">' + esc(cap(longDate(ds))) + '. Vedi solo chi è libero e non è assente.</p>';
+    if (jl.length) h += '<div>' + rows(jl) + '</div>';
+    if (ot.length) h += '<details class="imp"' + (otOpen ? ' open' : '') + '><summary><span>Altri pulitori</span><small>' + ot.length + '</small></summary><div style="padding:6px 12px">' + rows(ot) + '</div></details>';
+    if (!jl.length && !ot.length) h += '<p class="none" style="padding:0">Nessuno disponibile in questo giorno.</p>';
+    h += '<p class="err" id="f-err" role="alert"></p><button class="btn block" type="submit">Salva squadra</button>';
+    if (s) h += '<button class="ghost danger block" type="button" data-act="del-sq">Elimina squadra</button>';
+    h += '<button class="ghost block" type="button" data-act="close">Annulla</button>';
+    openSheet(h);
+  }
+  function moveScala(d, kid, s) {
+    d.squadre.forEach(function (x) { var i = x.appalti.indexOf(kid); if (i > -1) x.appalti.splice(i, 1); });
+    if (s.appalti.indexOf(kid) < 0) s.appalti.push(kid);
+    var j = d.saltati.indexOf(kid);
+    if (j > -1) d.saltati.splice(j, 1);
+    var k = find(state.condomini, kid);
+    if (k && k.giorni.indexOf(isoDow(state.date)) < 0 && d.extra.indexOf(kid) < 0) d.extra.push(kid);
+  }
+  function saveSquad() {
+    var ids = [];
+    each(document.querySelectorAll('#sheetForm input[name=mem]'), function (c) { if (c.checked) ids.push(c.value); });
+    if (!ids.length) { setErr('Scegli almeno una persona.'); return; }
+    var ds = state.date, d = cloneDay(ds), s = null, i;
+    if (sheet.id) for (i = 0; i < d.squadre.length; i++) if (d.squadre[i].id === sheet.id) s = d.squadre[i];
+    if (!s) { s = { id: newId(), membri: [], appalti: [] }; d.squadre.push(s); }
+    s.membri = ids;
+    if (sheet.pending) moveScala(d, sheet.pending, s);
+    closeSheet();
+    guard(put('programma', ds, d));
+  }
+
+  function openAssign(kid) {
+    var k = find(state.condomini, kid);
+    if (!k) return;
+    var info = dayInfo(state.date), cur = squadOf(info.day, kid);
+    sheet = { type: 'assign', id: kid };
+    var h = '<h3>Chi copre questa scala?</h3><p class="hint">' + esc(k.nome) + '</p>';
+    info.day.squadre.forEach(function (s, i) {
+      var nm = s.membri.map(cname).filter(Boolean);
+      if (!nm.length) return;
+      h += '<button type="button" class="pick" data-act="assign-sq" data-id="' + esc(kid) + '" data-sq="' + esc(s.id) + '">Squadra ' + (i + 1) + (cur === s ? ' ✓' : '') + '<small>' + esc(nm.join(', ')) + '</small></button>';
+    });
+    h += '<button type="button" class="pick" data-act="assign-new" data-id="' + esc(kid) + '">+ Nuova squadra<small>Scegli chi la fa</small></button>';
+    if (cur) h += '<button type="button" class="ghost block" data-act="assign-none" data-id="' + esc(kid) + '">Togli dalla squadra</button>';
+    h += '<button type="button" class="ghost block" data-act="skip" data-id="' + esc(kid) + '">Non si fa in questo giorno</button><button type="button" class="ghost block" data-act="close">Chiudi</button>';
+    openSheet(h);
+  }
+
+  function openSqScale(sqId) {
+    var ds = state.date, info = dayInfo(ds), s = find(info.day.squadre, sqId);
+    if (!s) return;
+    sheet = { type: 'sqscale', id: s.id };
+    var inOther = {};
+    info.day.squadre.forEach(function (x) { x.appalti.forEach(function (a) { inOther[a] = x.id; }); });
+    var openIds = {};
+    info.open.forEach(function (r) { openIds[r.k.id] = 1; });
+    function row(k, extra) {
+      return '<label class="opt" style="padding:6px 0"><input type="checkbox" name="sc" value="' + esc(k.id) + '"><span>' + esc(k.nome) + (extra ? '<span class="tag">' + extra + '</span>' : '') + '</span></label>';
+    }
+    var h = '<h3>Aggiungi scale alla squadra</h3>';
+    if (info.open.length) {
+      h += '<div><p class="hint">Ancora da assegnare</p>' + info.open.map(function (r) { return row(r.k, whyHtml(r)); }).join('') + '</div>';
+    } else {
+      h += '<p class="hint">Non ci sono scale scoperte da assegnare. Se serve, scegli tra gli altri appalti.</p>';
+    }
+    var others = state.condomini.slice().sort(byName).filter(function (k) { return !openIds[k.id] && inOther[k.id] !== s.id; });
+    if (others.length) {
+      h += '<details class="imp"><summary><span>Altri appalti</span><small>' + others.length + '</small></summary><div style="padding:6px 12px">' +
+        others.map(function (k) { return row(k, esc(cname(k.cleanerId) || 'non assegnato') + (inOther[k.id] ? ' · già in un’altra squadra' : '')); }).join('') + '</div></details>';
+    }
+    h += '<p class="err" id="f-err" role="alert"></p><button class="btn block" type="submit">Aggiungi</button><button class="ghost block" type="button" data-act="close">Annulla</button>';
+    openSheet(h);
+  }
+  function saveSqScale() {
+    var ds = state.date, d = cloneDay(ds), s = null, ids = [];
+    d.squadre.forEach(function (x) { if (x.id === sheet.id) s = x; });
+    each(document.querySelectorAll('#sheetForm input[name=sc]'), function (c) { if (c.checked) ids.push(c.value); });
+    if (!s || !ids.length) { closeSheet(); return; }
+    ids.forEach(function (kid) { moveScala(d, kid, s); });
+    closeSheet();
+    guard(put('programma', ds, d));
+  }
+
+  function openExtra() {
+    var ds = state.date, info = dayInfo(ds), on = {};
+    info.rows.forEach(function (r) { on[r.k.id] = 1; });
+    sheet = { type: 'extra' };
+    var list = state.condomini.slice().sort(byName).filter(function (k) { return !on[k.id]; });
+    var h = '<h3>Appalto fuori programma</h3><p class="hint">Per ' + esc(longDate(ds)) + '. Tocca quello da aggiungere.</p><div class="chips">';
+    list.forEach(function (k) { h += '<button type="button" class="chip" data-act="addextra" data-id="' + esc(k.id) + '">' + esc(k.nome) + '</button>'; });
+    if (!list.length) h += '<p>Tutti gli appalti sono già in programma.</p>';
+    h += '</div><button type="button" class="ghost block" data-act="close">Chiudi</button>';
+    openSheet(h);
+  }
+
+  function openJolly() {
+    sheet = { type: 'jolly' };
+    var h = '<h3>Jolly</h3><p class="hint">I jolly fanno le squadre nei giorni con scale scoperte. Non hanno appalti fissi.</p><div>';
+    state.cleaners.forEach(function (c) {
+      h += '<label class="opt" style="padding:6px 0"><input type="checkbox" name="jl" value="' + esc(c.id) + '"' + (c.jolly ? ' checked' : '') + '><span>' + esc(c.nome) + '</span></label>';
+    });
+    h += '</div><div class="field"><label for="f-new">Aggiungi nuovi jolly</label><textarea id="f-new" rows="4" placeholder="Un nome per riga"></textarea></div>' +
+      '<button class="btn block" type="submit">Salva</button><button class="ghost block" type="button" data-act="close">Annulla</button>';
+    openSheet(h);
+  }
+  function saveJolly() {
+    var chain = Promise.resolve(), seen = {}, base = Date.now();
+    each(document.querySelectorAll('#sheetForm input[name=jl]'), function (c) {
+      var cl = find(state.cleaners, c.value);
+      if (cl && !!cl.jolly !== c.checked) chain = chain.then(function () { return patch('cleaners', cl.id, { jolly: c.checked }); });
+    });
+    val('f-new').split(/[\n,;]+/).forEach(function (raw, i) {
+      var n = raw.replace(/\s+/g, ' ').trim();
+      if (!n || seen[norm(n)]) return;
+      seen[norm(n)] = 1;
+      var ex = cleanerByName(n);
+      if (ex) { if (!ex.jolly) chain = chain.then(function () { return patch('cleaners', ex.id, { jolly: true }); }); }
+      else chain = chain.then(function () { return put('cleaners', newId(), { nome: n, ordine: base + i, jolly: true }); });
+    });
+    closeSheet();
+    guard(chain);
+  }
+
+  /* --- azioni sul giorno --- */
+  function assignTo(kid, sqid) {
+    var ds = state.date, d = cloneDay(ds), s = null;
+    d.squadre.forEach(function (x) { if (x.id === sqid) s = x; });
+    if (!s) return;
+    moveScala(d, kid, s);
+    closeSheet();
+    guard(put('programma', ds, d));
+  }
+  function removeFromSquads(kid, sqid) {
+    var ds = state.date, d = cloneDay(ds);
+    d.squadre.forEach(function (x) { if (!sqid || x.id === sqid) { var i = x.appalti.indexOf(kid); if (i > -1) x.appalti.splice(i, 1); } });
+    guard(put('programma', ds, d));
+  }
+  function toggleSkip(kid) {
+    var ds = state.date, d = cloneDay(ds), i = d.saltati.indexOf(kid);
+    if (i > -1) d.saltati.splice(i, 1);
+    else { d.saltati.push(kid); d.squadre.forEach(function (x) { var j = x.appalti.indexOf(kid); if (j > -1) x.appalti.splice(j, 1); }); }
+    guard(put('programma', ds, d));
+  }
+
+  /* --- testo e PDF del giorno --- */
+  function dayData(ds) {
+    var info = dayInfo(ds), squads = [];
+    info.day.squadre.forEach(function (s, i) {
+      squads.push({
+        n: i + 1, nomi: s.membri.map(cname).filter(Boolean),
+        scale: s.appalti.map(function (id) { var k = find(state.condomini, id); return k ? k.nome : ''; }).filter(Boolean)
+      });
+    });
+    return {
+      squads: squads,
+      open: info.open.map(function (r) { return { nome: r.k.nome, why: r.ab ? r.t.nome + ' ' + (r.ab.tipo === 'malattia' ? 'in malattia' : 'assente') : 'non assegnato' }; }),
+      abs: info.abs.map(function (a) { return { nome: cname(a.cleanerId), tipo: a.tipo }; }),
+      total: info.active.length
+    };
+  }
+  function dayText(ds) {
+    var D = dayData(ds), L = ['Programma ' + longDate(ds), ''];
+    D.squads.forEach(function (s) {
+      L.push('Squadra ' + s.n + ': ' + (s.nomi.length ? s.nomi.join(', ') : '(nessuno)'));
+      s.scale.forEach(function (x) { L.push('- ' + x); });
+      L.push('');
+    });
+    if (D.open.length) { L.push('Ancora da assegnare:'); D.open.forEach(function (x) { L.push('- ' + x.nome); }); L.push(''); }
+    if (D.abs.length) L.push('Assenti: ' + D.abs.map(function (a) { return a.nome + (a.tipo === 'malattia' ? ' (malattia)' : ''); }).join(', '));
+    return L.join('\n').replace(/\n+$/, '');
+  }
+  function makeDayReport(ds) {
+    var doc = PdfDoc(), y = 0, D = dayData(ds);
+    function page() {
+      doc.add();
+      y = PM;
+      doc.text(PM, y + 8, 'Programma squadre', { b: 1, s: 9, c: ACC });
+      doc.text(PW - PM, y + 8, new Date().toLocaleDateString('it-IT'), { s: 9, c: MUTED, a: 'r' });
+      doc.line(PM, y + 14, PW - PM, LINE, 0.6);
+      y += 32;
+    }
+    function room(h) { if (y + h > PH - PM - 18) page(); }
+    function head(txt, right, col) {
+      room(70);
+      doc.rect(PM, y, CW, 22, col || ACC);
+      doc.text(PM + 8, y + 15, txt, { b: 1, s: 10.5, c: WHITE });
+      if (right) doc.text(PW - PM - 8, y + 15, right, { s: 9, c: WHITE, a: 'r' });
+      y += 22;
+    }
+    function item(txt, sub, col) {
+      var lines = wrapText(txt, false, 10, CW - 30), h = lines.length * 13 + 9 + (sub ? 11 : 0);
+      room(h);
+      doc.rect(PM + 8, y + 6, 4, 4, col || ACC);
+      lines.forEach(function (ln, i) { doc.text(PM + 20, y + 13 + i * 13, ln, { s: 10 }); });
+      if (sub) doc.text(PM + 20, y + 11 + lines.length * 13, sub, { s: 8.5, c: MUTED });
+      doc.line(PM, y + h, PM + CW, LINE, 0.4);
+      y += h;
+    }
+    page();
+    var title = cap(longDate(ds));
+    doc.text(PM, y + 16, title, { b: 1, s: 22 });
+    y += 24;
+    doc.text(PM, y + 8, D.total + (D.total === 1 ? ' appalto in programma' : ' appalti in programma') + ' · ' + D.squads.length + (D.squads.length === 1 ? ' squadra' : ' squadre'), { s: 9.5, c: MUTED });
+    y += 26;
+    D.squads.forEach(function (s) {
+      head('Squadra ' + s.n, s.scale.length + (s.scale.length === 1 ? ' scala' : ' scale'));
+      var lines = wrapText('Persone: ' + (s.nomi.length ? s.nomi.join(', ') : 'nessuna'), true, 10, CW - 16), h = lines.length * 13 + 10;
+      room(h);
+      doc.rect(PM, y, CW, h, SOFT);
+      lines.forEach(function (ln, i) { doc.text(PM + 8, y + 14 + i * 13, ln, { b: 1, s: 10 }); });
+      y += h;
+      if (!s.scale.length) item('Nessuna scala assegnata', '', MUTED);
+      s.scale.forEach(function (x) { item(x); });
+      y += 14;
+    });
+    if (D.open.length) {
+      head('Ancora da assegnare', String(D.open.length), BAD);
+      D.open.forEach(function (x) { item(x.nome, x.why, BAD); });
+      y += 14;
+    }
+    if (D.abs.length) {
+      head('Assenti', String(D.abs.length), MUTED);
+      D.abs.forEach(function (a) { item(a.nome, a.tipo === 'malattia' ? 'Malattia' : 'Assenza', MUTED); });
+      y += 14;
+    }
+    if (!D.squads.length && !D.open.length && !D.abs.length) doc.text(PM, y + 10, 'Nessuna squadra, scoperta o assenza per questo giorno.', { c: MUTED });
+    var N = doc.count(), i;
+    for (i = 0; i < N; i++) {
+      doc.go(i);
+      doc.text(PM, PH - 26, 'Documento riservato', { s: 8, c: MUTED });
+      doc.text(PW - PM, PH - 26, 'Pagina ' + (i + 1) + ' di ' + N, { s: 8, c: MUTED, a: 'r' });
+    }
+    return doc.build('Programma ' + longDate(ds));
+  }
+  function makeDayPdf(ds) {
+    var bytes;
+    try { bytes = makeDayReport(ds); } catch (e) { bytes = null; }
+    if (!bytes) { showToast('Non sono riuscito a creare il PDF.'); return; }
+    saveFile(bytes, 'Programma_' + ds + '.pdf', 'Programma ' + longDate(ds));
+  }
+  function copyText(t) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(t).then(function () { showToast('Testo copiato: incollalo dove vuoi.'); }, function () { showToast('Non sono riuscito a copiare il testo.'); });
+    } else {
+      showToast('Non sono riuscito a copiare il testo.');
+    }
+  }
+  function shareDayText(ds) {
+    var txt = dayText(ds);
+    if (navigator.share && isTouch()) {
+      navigator.share({ text: txt }).catch(function (err) { if (!err || err.name !== 'AbortError') copyText(txt); });
+      return;
+    }
+    copyText(txt);
+  }
 
   /* ---------- Azioni ---------- */
   function unassignWithUndo(id) {
@@ -1123,9 +1692,10 @@ const firebaseConfig = {
     ];
     var chain = Promise.resolve();
     cl.forEach(function (c, i) { chain = chain.then(function () { return put('cleaners', ids[i], { nome: c[0], ordine: Date.now() + i }); }); });
-    ks.forEach(function (k) {
+    var gg = [[1, 3, 5], [2, 4], [1, 4], [2, 5], [3], [1, 5]];
+    ks.forEach(function (k, ki) {
       chain = chain.then(function () {
-        return put('condomini', newId(), { nome: k[0], ricavo: k[1], stipendio: k[2], lordo: k[3], cleanerId: k[4] >= 0 ? ids[k[4]] : '' });
+        return put('condomini', newId(), { nome: k[0], ricavo: k[1], stipendio: k[2], lordo: k[3], cleanerId: k[4] >= 0 ? ids[k[4]] : '', giorni: gg[ki] });
       });
     });
     guard(chain);
@@ -1135,6 +1705,8 @@ const firebaseConfig = {
     var chain = Promise.resolve();
     state.condomini.slice().forEach(function (k) { chain = chain.then(function () { return del('condomini', k.id); }); });
     state.cleaners.slice().forEach(function (c) { chain = chain.then(function () { return del('cleaners', c.id); }); });
+    state.assenze.slice().forEach(function (a) { chain = chain.then(function () { return del('assenze', a.id); }); });
+    state.programma.slice().forEach(function (p) { chain = chain.then(function () { return del('programma', p.id); }); });
     guard(chain);
   }
 
@@ -1153,6 +1725,55 @@ const firebaseConfig = {
       case 'save-next': if (sheet) { sheet.next = true; saveSheet(); } break;
       case 'import': document.getElementById('xlsFile').click(); break;
       case 'pdf-all': makePdf(null); break;
+      case 'page':
+        state.page = el.getAttribute('data-p') === 'prog' ? 'prog' : 'app';
+        try { localStorage.setItem('appalti.page', state.page); } catch (e) {}
+        render(); window.scrollTo(0, 0);
+        break;
+      case 'wk': state.date = addDays(state.date, +el.getAttribute('data-n')); render(); break;
+      case 'today': state.date = dstr(new Date()); render(); break;
+      case 'day': state.date = el.getAttribute('data-date'); render(); break;
+      case 'add-abs': openAbs(null); break;
+      case 'edit-abs': openAbs(id); break;
+      case 'del-abs':
+        if (!sheet || !sheet.id) break;
+        if (!sheet.arm) { sheet.arm = true; el.textContent = 'Tocca ancora per eliminare'; break; }
+        var aid = sheet.id; closeSheet(); guard(del('assenze', aid));
+        break;
+      case 'new-sq': openSquad(null, null); break;
+      case 'edit-sq': openSquad(id, null); break;
+      case 'del-sq':
+        if (!sheet || !sheet.id) break;
+        if (!sheet.arm) { sheet.arm = true; el.textContent = 'Tocca ancora: le sue scale tornano da assegnare'; break; }
+        var dsq = sheet.id, dd = cloneDay(state.date);
+        dd.squadre = dd.squadre.filter(function (x) { return x.id !== dsq; });
+        closeSheet(); guard(put('programma', state.date, dd));
+        break;
+      case 'sq-add': openSqScale(id); break;
+      case 'sq-remove': removeFromSquads(id, el.getAttribute('data-sq')); break;
+      case 'assign': openAssign(id); break;
+      case 'assign-sq': assignTo(id, el.getAttribute('data-sq')); break;
+      case 'assign-new': closeSheet(); openSquad(null, id); break;
+      case 'assign-none': closeSheet(); removeFromSquads(id, null); break;
+      case 'skip': closeSheet(); toggleSkip(id); break;
+      case 'extra': openExtra(); break;
+      case 'addextra':
+        var de = cloneDay(state.date);
+        if (de.extra.indexOf(id) < 0) de.extra.push(id);
+        closeSheet(); guard(put('programma', state.date, de));
+        break;
+      case 'jolly': openJolly(); break;
+      case 'days': openDays(el.getAttribute('data-only') === '1'); break;
+      case 'days-filter': openDays(el.getAttribute('data-only') === '1'); break;
+      case 'tg':
+        el.classList.toggle('on');
+        var gl = [];
+        each(el.closest('.drow').querySelectorAll('.dbtn.on'), function (b) { gl.push(+b.getAttribute('data-d')); });
+        guard(patch('condomini', id, { giorni: gl }));
+        break;
+      case 'tgf': el.classList.toggle('on'); break;
+      case 'prog-pdf': makeDayPdf(state.date); break;
+      case 'prog-text': shareDayText(state.date); break;
       case 'pdf-cleaner': makePdf(id); break;
       case 'wipe':
         if (!state.wipeArm) { state.wipeArm = true; render(); setTimeout(function () { if (state.wipeArm) { state.wipeArm = false; render(); } }, 5000); }
@@ -1186,6 +1807,7 @@ const firebaseConfig = {
         closeSheet();
         var chain = Promise.resolve();
         moved.forEach(function (k) { chain = chain.then(function () { return patch('condomini', k.id, { cleanerId: '' }); }); });
+        state.assenze.filter(function (a) { return a.cleanerId === cidDel; }).forEach(function (a) { chain = chain.then(function () { return del('assenze', a.id); }); });
         chain = chain.then(function () { return del('cleaners', cidDel); });
         guard(chain);
         break;
@@ -1198,6 +1820,7 @@ const firebaseConfig = {
     handle(el.getAttribute('data-act'), el);
   }
   document.addEventListener('click', onClick);
+  root.addEventListener('toggle', function (e) { if (e.target && e.target.id === 'allDet') state.det = e.target.open; }, true);
   document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && sheet) closeSheet(); });
 
   /* ---------- Accesso e avvio ---------- */
@@ -1248,7 +1871,8 @@ const firebaseConfig = {
     unsubs.forEach(function (u) { try { u(); } catch (e) {} });
     unsubs = [];
     clearTimeout(slowTimer);
-    state.cleaners = []; state.condomini = [];
+    state.cleaners = []; state.condomini = []; state.assenze = []; state.programma = [];
+    state.pa = false; state.pp = false; state.perr = false;
     state.c = false; state.k = false; state.slow = false; state.denied = false; state.wipeArm = false;
   }
 
@@ -1269,6 +1893,15 @@ const firebaseConfig = {
       state.condomini = snap.docs.map(mapCondo);
       state.k = true; done(); render();
     }, fail));
+    function failP() { state.perr = true; render(); }
+    unsubs.push(db.collection('assenze').onSnapshot(function (snap) {
+      state.assenze = snap.docs.map(mapAssenza);
+      state.pa = true; render();
+    }, failP));
+    unsubs.push(db.collection('programma').onSnapshot(function (snap) {
+      state.programma = snap.docs.map(mapDay);
+      state.pp = true; render();
+    }, failP));
   }
 
   var cfg = firebaseConfig;
