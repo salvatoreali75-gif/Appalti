@@ -1351,47 +1351,64 @@ const firebaseConfig = {
     });
     return n;
   }
-  function openDup(id) {
-    var g = null;
-    dupGroups().forEach(function (x) { if (x.some(function (k) { return k.id === id; })) g = x; });
-    if (!g) { closeSheet(); showToast('Non risulta più un appalto doppio.'); return; }
-    sheet = { type: 'dup', ids: g.map(function (k) { return k.id; }), arm: null };
-    var h = '<h3>Appalti doppi</h3><p class="hint">Scegli quale tenere. Gli altri vengono eliminati e il programma dei giorni passa a quello che tieni. Controlla bene importi e giorni.</p>';
-    g.forEach(function (k) {
-      var u = dayUses(k.id);
-      h += '<div class="card" style="padding:12px 14px;margin:0 0 10px"><b>' + esc(k.nome) + '</b>' +
-        '<p class="meta" style="margin:4px 0 0">Pulitore: ' + esc(ownerName(k)) + '</p>' +
-        '<p class="meta" style="margin:2px 0 0">Ricavo ' + eur(k.ricavo) + ' · netto ' + eur(k.stipendio) + ' · ' + (k.lm ? 'busta paga non indicata' : 'busta paga ' + eur(k.lordo)) + '</p>' +
-        '<p class="meta" style="margin:2px 0 0">Giorni: ' + (k.giorni.length ? giorniText(k.giorni) : 'nessuno') + (k.nota ? ' · Nota: ' + esc(k.nota) : '') + '</p>' +
-        (u ? '<p class="meta" style="margin:2px 0 0">Presente in ' + u + (u === 1 ? ' giorno' : ' giorni') + ' del programma</p>' : '') +
-        '<div class="row2" style="margin-top:10px"><button class="ghost" type="button" data-act="edit-condo" data-id="' + esc(k.id) + '">Modifica</button>' +
-        '<button class="btn" type="button" data-act="dup-keep" data-id="' + esc(k.id) + '">Tieni questo</button></div></div>';
+  function openDup() {
+    var gs = dupGroups();
+    if (!gs.length) { closeSheet(); showToast('Non ci sono appalti doppi.'); return; }
+    sheet = { type: 'dup', groups: gs.map(function (g) { return g.map(function (k) { return k.id; }); }), arm: null };
+    var h = '<h3>Appalti doppi</h3><p class="hint">Per ogni gruppo scegli quale tenere. Gli altri vengono eliminati e il programma dei giorni passa a quello che tieni. Se non sono doppi lascia «Non toccare». Alla fine confermi una volta sola.</p>';
+    gs.forEach(function (g, gi) {
+      h += '<div class="card" style="padding:10px 14px;margin:0 0 10px"><p class="hint" style="margin:0 0 4px">Gruppo ' + (gi + 1) + ' di ' + gs.length + '</p>';
+      g.forEach(function (k) {
+        var u = dayUses(k.id);
+        h += '<label class="opt" style="padding:8px 0;align-items:flex-start"><input type="radio" name="dg' + gi + '" value="' + esc(k.id) + '"><span><b>' + esc(k.nome) + '</b>' +
+          '<span class="meta" style="display:block">' + esc(ownerName(k)) + ' · ricavo ' + eur(k.ricavo) + ' · netto ' + eur(k.stipendio) + ' · ' + (k.lm ? 'busta paga non indicata' : 'busta paga ' + eur(k.lordo)) + '</span>' +
+          '<span class="meta" style="display:block">Giorni: ' + (k.giorni.length ? giorniText(k.giorni) : 'nessuno') + (k.nota ? ' · Nota: ' + esc(k.nota) : '') + (u ? ' · nel programma di ' + u + (u === 1 ? ' giorno' : ' giorni') : '') + '</span></span></label>';
+      });
+      h += '<label class="opt" style="padding:8px 0"><input type="radio" name="dg' + gi + '" value="-" checked><span>Non toccare</span></label></div>';
     });
-    h += '<button class="ghost block" type="button" data-act="close">Non sono doppi / chiudi</button>';
+    h += '<button class="btn block" type="button" data-act="dup-apply" id="dupGo">Tieni le scelte ed elimina gli altri</button>' +
+      '<button class="ghost block" type="button" data-act="close">Chiudi</button>';
     openSheet(h);
   }
+  function dupPicks() {
+    var picks = [];
+    if (!sheet || sheet.type !== 'dup') return picks;
+    sheet.groups.forEach(function (g, gi) {
+      var r = sheetRoot.querySelector('input[name=dg' + gi + ']:checked');
+      if (r && r.value !== '-') picks.push({ keep: r.value, ids: g.filter(function (x) { return x !== r.value; }) });
+    });
+    return picks;
+  }
   function dedupe(a) { var seen = {}; return a.filter(function (x) { if (seen[x]) return false; seen[x] = 1; return true; }); }
-  function dupKeep(keepId) {
-    var ids = sheet.ids.filter(function (x) { return x !== keepId; }), keep = find(state.condomini, keepId), jobs = [];
+  function dupApply(picks) {
+    var map = {}, all = [], jobs = [];
+    picks.forEach(function (pk) { pk.ids.forEach(function (o) { map[o] = pk.keep; all.push(o); }); });
     closeSheet();
-    if (!keep || !ids.length) return;
+    if (!all.length) return;
     state.programma.slice().forEach(function (p) {
-      var d = cloneDay(p.id), ch = false, seen = false;
-      function rep(a) { return a.map(function (x) { if (ids.indexOf(x) > -1) { ch = true; return keepId; } return x; }); }
+      var d = cloneDay(p.id), ch = false, seen = {}, moved = {};
+      function rep(a) { return a.map(function (x) { if (map[x]) { ch = true; moved[map[x]] = 1; return map[x]; } return x; }); }
       d.squadre.forEach(function (s) {
-        s.appalti = rep(s.appalti).filter(function (x) { if (x !== keepId) return true; if (seen) { ch = true; return false; } seen = true; return true; });
+        s.appalti = rep(s.appalti).filter(function (x) {
+          if (!picks.some(function (pk) { return pk.keep === x; })) return true;
+          if (seen[x]) { ch = true; return false; }
+          seen[x] = 1; return true;
+        });
       });
       d.extra = dedupe(rep(d.extra));
       d.saltati = dedupe(rep(d.saltati));
-      ids.forEach(function (o) {
-        if (d.dett[o] !== undefined) { if (!d.dett[keepId]) d.dett[keepId] = d.dett[o]; delete d.dett[o]; ch = true; }
+      all.forEach(function (o) {
+        if (d.dett[o] !== undefined) { if (!d.dett[map[o]]) d.dett[map[o]] = d.dett[o]; delete d.dett[o]; ch = true; }
       });
-      if (seen && keep.giorni.indexOf(isoDow(p.id)) < 0 && d.extra.indexOf(keepId) < 0) d.extra.push(keepId);
+      Object.keys(seen).forEach(function (kid) {
+        var k = find(state.condomini, kid);
+        if (k && k.giorni.indexOf(isoDow(p.id)) < 0 && d.extra.indexOf(kid) < 0) d.extra.push(kid);
+      });
       if (ch) jobs.push(put('programma', p.id, d));
     });
     guard(Promise.all(jobs).then(function () {
-      return Promise.all(ids.map(function (o) { return del('condomini', o); }));
-    })).then(function () { showToast('Tenuto «' + keep.nome + '». Eliminati ' + ids.length + (ids.length === 1 ? ' doppione.' : ' doppioni.')); });
+      return Promise.all(all.map(function (o) { return del('condomini', o); }));
+    })).then(function () { showToast('Fatto. Eliminati ' + all.length + (all.length === 1 ? ' doppione.' : ' doppioni.')); });
   }
   function dayWarn(info, ds) {
     var w = [], cnt = {}, where = {};
@@ -1430,12 +1447,7 @@ const firebaseConfig = {
     if (!items.length && !unsent && !dups.length) return '';
     h = '<section class="alert" aria-label="Avvisi">';
     if (dups.length) {
-      h += '<b>Possibili appalti doppi</b><div class="chips">';
-      dups.slice(0, 6).forEach(function (g) {
-        h += '<button class="chip" type="button" data-act="dup" data-id="' + esc(g[0].id) + '">' + esc(g[0].nome) + ' · ' + esc(g.map(ownerName).join(' / ')) + '</button>';
-      });
-      if (dups.length > 6) h += '<span>e altri ' + (dups.length - 6) + '</span>';
-      h += '</div>';
+      h += '<b>Possibili appalti doppi</b><div class="chips"><button class="chip" type="button" data-act="dup">Vedi tutti e scegli: ' + dups.length + (dups.length === 1 ? ' gruppo' : ' gruppi') + '</button></div>';
     }
     if (items.length) {
       h += '<b>Scale ancora da assegnare</b><div class="chips">';
@@ -2245,16 +2257,13 @@ const firebaseConfig = {
       case 'edit-cleaner': openCleaner(id); break;
       case 'add-condo': openCondo(null, el.getAttribute('data-cleaner')); break;
       case 'edit-condo': openCondo(id, null); break;
-      case 'dup': openDup(id); break;
-      case 'dup-keep':
-        if (!sheet || sheet.type !== 'dup') break;
-        if (sheet.arm !== id) {
-          sheet.arm = id;
-          each(sheetRoot.querySelectorAll('[data-act=dup-keep]'), function (b) { b.textContent = 'Tieni questo'; });
-          el.textContent = 'Tocca ancora: elimino gli altri';
-          break;
-        }
-        dupKeep(id);
+      case 'dup': openDup(); break;
+      case 'dup-apply':
+        var pk = dupPicks();
+        if (!pk.length) { showToast('Scegli almeno un appalto da tenere.'); break; }
+        var sig = pk.map(function (x) { return x.keep; }).join(','), nrem = pk.reduce(function (n, x) { return n + x.ids.length; }, 0);
+        if (!sheet || sheet.arm !== sig) { sheet.arm = sig; el.textContent = 'Tocca ancora: elimino ' + nrem + (nrem === 1 ? ' appalto' : ' appalti'); break; }
+        dupApply(pk);
         break;
       case 'unassign': unassignWithUndo(id); break;
       case 'logout': if (auth) signOut(auth); break;
