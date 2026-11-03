@@ -29,6 +29,7 @@
   --accent-ink: #FFFFFF;
   --bad: #B3392B;
   --good: #1F7A4D;
+  --warn: #9A6200;
   --scrim: rgba(10, 24, 26, 0.5);
   --font-display: "Bricolage Grotesque", system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-body: "Hanken Grotesk", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
@@ -45,6 +46,7 @@
     --accent-ink: #062226;
     --bad: #FF8A7A;
     --good: #5CD19A;
+    --warn: #F0BE4A;
     --scrim: rgba(0, 0, 0, 0.6);
     color-scheme: dark;
   }
@@ -60,6 +62,7 @@
   --accent-ink: #062226;
   --bad: #FF8A7A;
   --good: #5CD19A;
+  --warn: #F0BE4A;
   --scrim: rgba(0, 0, 0, 0.6);
   color-scheme: dark;
 }
@@ -301,11 +304,62 @@ details.imp summary small { color: var(--muted); font-weight: 600; white-space: 
 #mainSearch[hidden] { display: none; }
 .noresult { margin: 0; color: var(--muted); font-size: 0.9rem; }
 
+/* utile a colpo d'occhio: percentuale colorata e striscia a sinistra della riga */
+.pct { display: block; font-size: 0.66rem; font-weight: 700; line-height: 1.1; }
+.pct.good, .meta .good { color: var(--good); }
+.pct.warn, .meta .warn { color: var(--warn); }
+.pct.bad, .meta .bad { color: var(--bad); }
+.meta b { font-weight: 700; }
+tr.m-warn td.nm { box-shadow: inset 3px 0 0 var(--warn); }
+tr.m-bad td.nm { box-shadow: inset 3px 0 0 var(--bad); }
+.stat small { display: block; font-size: 0.72rem; margin-top: 3px; }
+.sortbar { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.sortbar span { font-size: 0.78rem; color: var(--muted); font-weight: 600; }
+.sortbar .sep { flex-basis: 100%; height: 0; }
+.chip.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+/* storico mensile */
+.hist .cmp { margin: 0; padding: 0 14px 6px; font-size: 0.9rem; }
+.hist .cmp b { font-variant-numeric: tabular-nums; }
+.hist svg { display: block; width: 100%; max-width: 440px; height: auto; padding: 0 8px 10px; }
+.hist .bar { fill: var(--accent); }
+.hist .bar.neg { fill: var(--bad); }
+.hist .bar.cur { fill: var(--good); }
+.hist .axis { stroke: var(--line); }
+.hist text { fill: var(--muted); font-family: var(--font-body); font-size: 10px; font-weight: 600; }
+.hist text.v { fill: var(--ink); font-weight: 700; }
+.pcol { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+/* telefono: bersagli più comodi per il dito */
+@media (pointer: coarse) {
+  .xbtn { width: 40px; height: 40px; }
+  col.c-x { width: 40px; }
+  .ghost { min-height: 40px; }
+  .foot .ghost { min-height: 44px; }
+}
+/* PC: due colonne, finestre al centro */
+@media (min-width: 1000px) {
+  #app.wrap, #boot { max-width: 1180px; }
+  #root.wrap { max-width: none; width: 100%; }
+  .tools { grid-template-columns: repeat(3, 1fr); }
+  .tools .ghost { grid-column: auto !important; }
+  .top { flex-direction: row; align-items: flex-end; }
+  .top .hb { display: flex; }
+  .top .hb .btn { padding: 0 22px; }
+  .tabs { max-width: 420px; }
+  #mainSearch { max-width: 560px; }
+  .summary { grid-template-columns: repeat(4, 1fr); }
+  #root.pc-app, #root.pc-prog { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: start; }
+  #root.pc-app > *, #root.pc-prog > * { grid-column: 1 / -1; }
+  #root.pc-app > section.card, #root.pc-prog > .pcol { grid-column: auto; }
+  .sheet { top: 50%; bottom: auto; transform: translateY(-50%); border-radius: 20px; max-height: 86vh; padding-bottom: 18px; }
+  col.c-n { width: 84px; }
+  td { font-size: 0.92rem; }
+}
 @media (min-width: 430px) {
   col.c-n { width: 64px; }
   td { font-size: 0.9rem; }
 }
 </style>
+<script src="version.js"></script>
 </head>
 <body>
 
@@ -338,12 +392,13 @@ details.imp summary small { color: var(--muted); font-weight: 600; white-space: 
 </main>
 <div id="sheetRoot"></div>
 <div id="toast" class="toast" hidden></div>
+<input type="file" id="bakFile" accept=".json,application/json" hidden>
 <input type="file" id="xlsFile" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
 
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut, sendPasswordResetEmail } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, initializeFirestore, persistentLocalCache, persistentMultipleTabManager, collection, doc, setDoc, updateDoc, deleteDoc, onSnapshot, terminate, clearIndexedDbPersistence } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyAKfAf1nJbqLwFDXKUFDd5zXMNNtuhOMmw",
@@ -360,8 +415,10 @@ const firebaseConfig = {
   var sheetRoot = document.getElementById('sheetRoot');
   var toastEl = document.getElementById('toast');
   var db = null, auth = null;
-  var state = { cleaners: [], condomini: [], assenze: [], programma: [], c: false, k: false, pa: false, pp: false, perr: false, slow: false, denied: false, local: false, wipeArm: false, user: '', det: false, page: savedPage(), date: dstr(new Date()) };
+  var state = { cleaners: [], condomini: [], assenze: [], programma: [], c: false, k: false, pa: false, pp: false, perr: false, slow: false, denied: false, local: false, wipeArm: false, user: '', det: false, page: savedPage(), date: dstr(new Date()), storico: [], ps: false, serr: false, raw: {}, closeArm: false, sort: lsGet('appalti.sort', 'nome') === 'utile' ? 'utile' : 'nome', mf: (/^(all|neg|low)$/.test(lsGet('appalti.mf', 'all')) ? lsGet('appalti.mf', 'all') : 'all') };
   var sheet = null;
+  function lsGet(k, d) { try { var v = localStorage.getItem(k); return v === null ? d : v; } catch (e) { return d; } }
+  function lsSet(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
   function savedPage() { try { return localStorage.getItem('appalti.page') === 'prog' ? 'prog' : 'app'; } catch (e) { return 'app'; } }
   var toastTimer = null;
 
@@ -448,36 +505,55 @@ const firebaseConfig = {
     return state.condomini.filter(function (k) { return !k.cleanerId || !find(state.cleaners, k.cleanerId); }).sort(byName);
   }
   function negCls(n) { return n < 0 ? ' neg' : ''; }
+  // Margine = utile / ricavo. Sotto LOW è "basso" (giallo), sotto zero "in perdita" (rosso).
+  var LOW = 0.2;
+  function mInfo(r, l) {
+    if (!(r > 0)) return l > 0 ? { c: 'bad', t: '—' } : { c: '', t: '' };
+    var m = (r - l) / r;
+    return { c: m < 0 ? 'bad' : (m < LOW ? 'warn' : 'good'), t: String(Math.round(m * 100)).replace('-', '−') + '%', m: m };
+  }
+  function assignedAll() {
+    var all = [];
+    state.cleaners.forEach(function (c) { all = all.concat(condoOf(c.id)); });
+    return all;
+  }
+  function passes(k) {
+    if (state.mf === 'all') return true;
+    var c = mInfo(k.ricavo, k.lordo).c;
+    return state.mf === 'neg' ? c === 'bad' : (c === 'bad' || c === 'warn');
+  }
 
   /* ---------- Disegno ---------- */
   function summaryHtml() {
     var all = [];
     state.cleaners.forEach(function (c) { all = all.concat(condoOf(c.id)); });
-    var t = sum(all);
+    var t = sum(all), mi = mInfo(t.r, t.l);
     return '<div class="summary" aria-label="Totali della ditta">' +
       '<div class="stat"><span>Ricavo ditta</span><b>' + eur(t.r) + '</b></div>' +
       '<div class="stat"><span>Costo busta paga (lordo)</span><b>' + eur(t.l) + '</b></div>' +
       '<div class="stat"><span>Stipendi netti</span><b>' + eur(t.s) + '</b></div>' +
-      '<div class="stat main"><span>Utile ditta</span><b class="' + negCls(t.u).trim() + '">' + eur(t.u) + '</b></div>' +
+      '<div class="stat main"><span>Utile ditta</span><b class="' + negCls(t.u).trim() + '">' + eur(t.u) + '</b>' + (mi.t ? '<small class="pct ' + mi.c + '">margine ' + mi.t + '</small>' : '') + '</div>' +
       '</div>';
   }
 
   function cleanerCard(c) {
-    var list = condoOf(c.id), t = sum(list);
+    var full = condoOf(c.id), t = sum(full), cm = mInfo(t.r, t.l), list = full.filter(passes);
+    if (state.mf !== 'all' && !list.length) return '';
+    if (state.sort === 'utile') list.sort(function (a, b) { return (a.ricavo - a.lordo) - (b.ricavo - b.lordo) || byName(a, b); });
     var h = '<section class="card" data-cs="' + esc(sKey(c.nome)) + '"><div class="chead"><div><h2>' + esc(c.nome) + '</h2><p class="meta">' +
-      list.length + (list.length === 1 ? ' appalto' : ' appalti') +
+      full.length + (full.length === 1 ? ' appalto' : ' appalti') + (cm.t ? ' · margine <b class="' + cm.c + '">' + cm.t + '</b>' : '') +
       '</p></div><div class="hb"><button class="ghost" type="button" data-act="pdf-cleaner" data-id="' + esc(c.id) + '" aria-label="Scarica PDF di ' + esc(c.nome) + '">PDF</button>' +
       '<button class="ghost" type="button" data-act="edit-cleaner" data-id="' + esc(c.id) + '">Modifica</button></div></div>';
     if (list.length) {
       h += '<div class="tw"><table><colgroup><col><col class="c-n"><col class="c-n"><col class="c-n"><col class="c-n"><col class="c-x"></colgroup>' +
         '<thead><tr><th class="l">Appalto</th><th>Ricavo</th><th>Netto</th><th>Lordo</th><th>Utile</th><th></th></tr></thead><tbody>';
       list.forEach(function (k) {
-        var u = round2(k.ricavo - k.lordo);
-        h += '<tr class="clk" data-s="' + esc(sKey(k.nome + ' ' + c.nome)) + '" data-act="edit-condo" data-id="' + esc(k.id) + '"><td class="nm"><button class="rowbtn" type="button" data-act="edit-condo" data-id="' + esc(k.id) + '">' + esc(k.nome) + '</button>' + ((k.giorni.length || k.nota) ? '<span class="tag" style="padding-bottom:4px">' + giorniText(k.giorni) + (k.giorni.length && k.nota ? ' · ' : '') + esc(k.nota) + '</span>' : '') + '</td>' +
-          '<td>' + fmt(k.ricavo) + '</td><td>' + fmt(k.stipendio) + '</td><td' + (k.lm ? ' class="lm"' : '') + '>' + fmt(k.lordo) + '</td><td class="u' + negCls(u) + '">' + fmt(u) + '</td>' +
+        var u = round2(k.ricavo - k.lordo), km = mInfo(k.ricavo, k.lordo);
+        h += '<tr class="clk' + (km.c === 'warn' || km.c === 'bad' ? ' m-' + km.c : '') + '" data-s="' + esc(sKey(k.nome + ' ' + c.nome)) + '" data-act="edit-condo" data-id="' + esc(k.id) + '"><td class="nm"><button class="rowbtn" type="button" data-act="edit-condo" data-id="' + esc(k.id) + '">' + esc(k.nome) + '</button>' + ((k.giorni.length || k.nota) ? '<span class="tag" style="padding-bottom:4px">' + giorniText(k.giorni) + (k.giorni.length && k.nota ? ' · ' : '') + esc(k.nota) + '</span>' : '') + '</td>' +
+          '<td>' + fmt(k.ricavo) + '</td><td>' + fmt(k.stipendio) + '</td><td' + (k.lm ? ' class="lm"' : '') + '>' + fmt(k.lordo) + '</td><td class="u' + negCls(u) + '">' + fmt(u) + (km.t ? '<span class="pct ' + km.c + '">' + km.t + '</span>' : '') + '</td>' +
           '<td class="x"><button class="xbtn" type="button" data-act="unassign" data-id="' + esc(k.id) + '" aria-label="Togli ' + esc(k.nome) + ' da ' + esc(c.nome) + '">×</button></td></tr>';
       });
-      h += '<tr class="tot"><td class="nm">Totale</td><td>' + fmt(t.r) + '</td><td>' + fmt(t.s) + '</td><td>' + fmt(t.l) + '</td><td class="u' + negCls(t.u) + '">' + fmt(t.u) + '</td><td></td></tr>';
+      if (state.mf === 'all') h += '<tr class="tot"><td class="nm">Totale</td><td>' + fmt(t.r) + '</td><td>' + fmt(t.s) + '</td><td>' + fmt(t.l) + '</td><td class="u' + negCls(t.u) + '">' + fmt(t.u) + '</td><td></td></tr>';
       h += '</tbody></table></div>';
     } else {
       h += '<p class="none">Nessun appalto assegnato.</p>';
@@ -531,10 +607,16 @@ const firebaseConfig = {
       h += emptyHtml();
     } else {
       h += summaryHtml();
-      h += '<div class="tools"><button class="ghost" type="button" data-act="import">Importa da Excel</button><button class="ghost" type="button" data-act="pdf-all">PDF generale</button></div>';
+      h += histHtml();
+      h += '<div class="tools"><button class="ghost" type="button" data-act="import">Importa da Excel</button><button class="ghost" type="button" data-act="pdf-all">PDF generale</button><button class="ghost" type="button" data-act="backup" style="grid-column:1/-1">Backup e ripristino</button></div>';
+      h += backupReminder();
+      h += sortBar();
       var nlm = state.condomini.filter(function (k) { return k.lm; }).length;
       if (nlm) h += '<p class="note">Per ' + nlm + (nlm === 1 ? ' appalto' : ' appalti') + ' manca ancora il costo busta paga (numero in corsivo): per ora uso lo stipendio netto.</p>';
-      state.cleaners.forEach(function (c) { if (!(c.jolly && !condoOf(c.id).length)) h += cleanerCard(c); });
+      var cards = '';
+      state.cleaners.forEach(function (c) { if (!(c.jolly && !condoOf(c.id).length)) cards += cleanerCard(c); });
+      if (!cards && state.mf !== 'all') cards = '<p class="note">' + (state.mf === 'neg' ? 'Nessun appalto in perdita.' : 'Nessun appalto sotto il ' + Math.round(LOW * 100) + '% di margine.') + '</p>';
+      h += cards;
       var jls = state.cleaners.filter(function (c) { return c.jolly && !condoOf(c.id).length; });
       if (jls.length) {
         h += '<section class="card"><div class="chead"><div><h2>Jolly</h2><p class="meta">Fanno le squadre nella pagina Programma</p></div></div><div class="chips" style="padding:0 14px 12px">';
@@ -544,17 +626,204 @@ const firebaseConfig = {
     }
     var un = unassigned();
     if (un.length && state.page !== 'prog') h += looseCard(un);
-    h += '<div class="foot"><p class="hint">Collegato come ' + esc(state.user || '') + ' · versione 14</p><div class="row2"><button class="ghost" type="button" data-act="logout">Esci</button>';
+    h += '<div class="foot"><p class="hint">Collegato come ' + esc(state.user || '') + ' · versione ' + esc(self.APPALTI_VERSION || '?') + '</p><div class="row2"><button class="ghost" type="button" data-act="logout">Esci</button>';
     if ((state.cleaners.length || state.condomini.length) && state.page !== 'prog') {
       h += '<button class="ghost' + (state.wipeArm ? ' danger' : '') + '" type="button" data-act="wipe">' +
         (state.wipeArm ? 'Tocca ancora per eliminare tutto' : 'Elimina tutti i dati') + '</button>';
     }
     h += '</div></div>';
     root.innerHTML = h;
+    root.classList.toggle('pc-app', state.page !== 'prog');
+    root.classList.toggle('pc-prog', state.page === 'prog');
     var ms = document.getElementById('mainSearch');
     ms.hidden = !(state.page === 'app' && state.cleaners.length);
     if (ms.hidden) { root.classList.remove('searching'); } else { applyMainFilter(); }
   }
+  function sortBar() {
+    var all = assignedAll(), nNeg = 0, nLow = 0;
+    all.forEach(function (k) { var c = mInfo(k.ricavo, k.lordo).c; if (c === 'bad') nNeg++; if (c === 'bad' || c === 'warn') nLow++; });
+    function chip(a, v, label, cur) { return '<button type="button" class="chip' + (v === cur ? ' on' : '') + '" data-act="' + a + '" data-v="' + v + '" aria-pressed="' + (v === cur) + '">' + label + '</button>'; }
+    return '<div class="sortbar" aria-label="Ordine e filtri"><span>Ordina</span>' + chip('sort', 'nome', 'Per nome', state.sort) + chip('sort', 'utile', 'Utile più basso', state.sort) +
+      '<i class="sep"></i><span>Mostra</span>' + chip('mf', 'all', 'Tutti', state.mf) + chip('mf', 'neg', 'In perdita (' + nNeg + ')', state.mf) + chip('mf', 'low', 'Sotto il ' + Math.round(LOW * 100) + '% (' + nLow + ')', state.mf) + '</div>';
+  }
+
+  /* ---------- Storico mensile ---------- */
+  function monthKey(d) { return d.getFullYear() + '-' + z2(d.getMonth() + 1); }
+  function monthName(k) { var p = k.split('-'); return MONS[+p[1] - 1] + ' ' + p[0]; }
+  function signEur(n) { return (n > 0 ? '+' : '') + eur(n); }
+  function histHtml() {
+    if (state.serr) return '<p class="note">Lo storico mensile non è ancora attivo: nelle regole di Firebase va aggiunta la collezione «storico».</p>';
+    if (!state.ps) return '';
+    var now = monthKey(new Date()), list = state.storico, cur = sum(assignedAll()), m = MONS[new Date().getMonth()];
+    var saved = find(list, now), prev = null, i;
+    for (i = list.length - 1; i >= 0; i--) if (list[i].id < now) { prev = list[i]; break; }
+    var lbl = state.closeArm ? 'Tocca ancora per aggiornare ' + m : (saved ? 'Aggiorna ' + m : 'Chiudi ' + m);
+    var h = '<div class="card hist"><div class="chead"><div><h2>Storico mensile</h2><p class="meta">' +
+      (list.length ? list.length + (list.length === 1 ? ' mese salvato' : ' mesi salvati') + (saved ? ' · ' + m + ' salvato il ' + esc(fmtWhen(saved.at)) : '') : 'Nessun mese salvato') +
+      '</p></div><button class="ghost" type="button" data-act="close-month">' + lbl + '</button></div>';
+    if (prev) {
+      var du = round2(cur.u - prev.tot.u);
+      h += '<p class="cmp">Utile di oggi <b class="' + negCls(cur.u).trim() + '">' + eur(cur.u) + '</b>: <b class="' + (du < 0 ? 'neg' : '') + '">' + signEur(du) + '</b> rispetto a ' + esc(monthName(prev.id)) + ' (' + eur(prev.tot.u) + ').</p>';
+    } else if (!list.length) {
+      h += '<p class="none">A fine mese tocca «Chiudi ' + m + '»: salvo i totali, così potrai confrontarli con i mesi successivi.</p>';
+    }
+    if (list.length) h += histChart(list.slice(-12), now);
+    return h + '</div>';
+  }
+  function histChart(list, now) {
+    var W = 336, H = 132, top = 18, bot = 20, n = list.length, slot = (W - 8) / Math.max(n, 6), bw = Math.min(26, slot - 8);
+    var vals = list.map(function (x) { return x.tot.u; }), mx = Math.max.apply(null, vals.concat([0])), mn = Math.min.apply(null, vals.concat([0]));
+    var span = (mx - mn) || 1, base = top + (H - top - bot) * (mx / span);
+    var h = '<svg viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="Utile degli ultimi ' + n + ' mesi">';
+    h += '<line class="axis" x1="4" x2="' + (W - 4) + '" y1="' + base.toFixed(1) + '" y2="' + base.toFixed(1) + '"/>';
+    list.forEach(function (x, i) {
+      var v = x.tot.u, hh = Math.abs(v) / span * (H - top - bot), cx = 4 + slot * i + slot / 2, y = v >= 0 ? base - hh : base;
+      h += '<rect class="bar' + (v < 0 ? ' neg' : (x.id === now ? ' cur' : '')) + '" x="' + (cx - bw / 2).toFixed(1) + '" y="' + y.toFixed(1) + '" width="' + bw.toFixed(1) + '" height="' + Math.max(1, hh).toFixed(1) + '" rx="3"><title>' + esc(monthName(x.id)) + ': ' + esc(eur(v)) + '</title></rect>';
+      h += '<text x="' + cx.toFixed(1) + '" y="' + (H - 6) + '" text-anchor="middle">' + MONS3[+x.id.slice(5) - 1] + '</text>';
+      if (i === n - 1) h += '<text class="v" x="' + cx.toFixed(1) + '" y="' + (v >= 0 ? y - 5 : y + hh + 12).toFixed(1) + '" text-anchor="middle">' + esc(fmt(v)) + '</text>';
+    });
+    return h + '</svg>';
+  }
+  function closeMonth() {
+    var mk = monthKey(new Date());
+    if (find(state.storico, mk) && !state.closeArm) {
+      state.closeArm = true; render();
+      setTimeout(function () { if (state.closeArm) { state.closeArm = false; render(); } }, 5000);
+      return;
+    }
+    state.closeArm = false;
+    var pul = [];
+    state.cleaners.forEach(function (c) {
+      var l = condoOf(c.id); if (!l.length) return;
+      var t = sum(l); pul.push({ id: c.id, nome: c.nome, n: l.length, r: t.r, l: t.l, s: t.s, u: t.u });
+    });
+    var tt = sum(assignedAll());
+    put('storico', mk, { mese: mk, at: Date.now(), da: state.user, tot: { r: tt.r, l: tt.l, s: tt.s, u: tt.u }, pul: pul }).then(function () {
+      showToast('Totali di ' + monthName(mk) + ' salvati nello storico.');
+    }, function (err) {
+      showToast(err && err.code === 'permission-denied' ? 'Lo storico non è ancora abilitato nelle regole di Firebase.' : 'Non sono riuscito a salvare. Riprova tra poco.');
+    });
+    render();
+  }
+
+  /* ---------- Backup e ripristino ---------- */
+  var BK_COLS = ['cleaners', 'condomini', 'assenze', 'programma', 'storico'];
+  var BK_NAMES = { cleaners: 'pulitori', condomini: 'appalti', assenze: 'assenze', programma: 'giorni di programma', storico: 'mesi di storico' };
+  function buildBackup() {
+    var data = {};
+    BK_COLS.forEach(function (c) { data[c] = (state.raw[c] || []).map(function (d) { return { id: d.id, data: d.data }; }); });
+    return { app: 'appalti', v: 1, at: new Date().toISOString(), da: state.user, data: data };
+  }
+  function saveJson(text, name, share) {
+    function dl() {
+      var url = URL.createObjectURL(new Blob([text], { type: 'application/json' })), a = document.createElement('a');
+      a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
+      return true;
+    }
+    var file = null;
+    try { file = new File([text], name, { type: 'application/json' }); } catch (e) {}
+    if (share && file && isTouch() && navigator.share && navigator.canShare && navigator.canShare({ files: [file] })) {
+      return navigator.share({ files: [file], title: name }).then(function () { return true; }, function (err) { return err && err.name === 'AbortError' ? false : dl(); });
+    }
+    return Promise.resolve(dl());
+  }
+  function downloadBackup(reason, share) {
+    var name = 'Appalti_backup_' + dstr(new Date()) + (reason ? '_' + reason : '') + '.json';
+    return saveJson(JSON.stringify(buildBackup()), name, share).then(function (ok) {
+      if (ok) { lsSet('appalti.lastBackup', String(Date.now())); render(); }
+      return ok;
+    });
+  }
+  function backupAge() { var t = +lsGet('appalti.lastBackup', '0'); return t ? Math.floor((Date.now() - t) / 86400000) : -1; }
+  function backupReminder() {
+    if (!state.condomini.length) return '';
+    var a = backupAge();
+    if (a >= 0 && a < 7) return '';
+    return '<p class="note">' + (a < 0 ? 'Da questo dispositivo non hai ancora fatto un backup dei dati.' : 'L\u2019ultimo backup da questo dispositivo è di ' + a + ' giorni fa.') +
+      '<br><button class="ghost" type="button" data-act="bk-save">Scarica backup ora</button></p>';
+  }
+  function openBackup() {
+    var a = backupAge();
+    sheet = { type: 'backup' };
+    openSheet('<h3>Backup e ripristino</h3>' +
+      '<p class="hint">' + (a < 0 ? 'Da questo dispositivo non hai ancora fatto un backup.' : 'Ultimo backup da questo dispositivo: ' + (a === 0 ? 'oggi' : a === 1 ? 'ieri' : a + ' giorni fa') + '.') + '</p>' +
+      '<p class="note">Il file contiene ricavi e stipendi: conservalo in un posto sicuro (una cartella personale sul PC o sul cloud) e non mandarlo nei gruppi.</p>' +
+      '<button type="button" class="btn block" data-act="bk-save">Scarica backup</button>' +
+      '<button type="button" class="ghost block" data-act="bk-open">Ripristina da un backup…</button>' +
+      '<p class="err" id="f-err" role="alert"></p><div id="bk-sum"></div>' +
+      '<button type="button" class="ghost block" data-act="close">Chiudi</button>');
+  }
+  function parseBackup(txt) {
+    if (!txt || txt.length > 20000000) return null;
+    var j; try { j = JSON.parse(txt); } catch (e) { return null; }
+    if (!j || j.app !== 'appalti' || !j.data || typeof j.data !== 'object') return null;
+    var out = {}, counts = {}, ok = true;
+    BK_COLS.forEach(function (c) {
+      var arr = j.data[c] === undefined ? [] : j.data[c];
+      if (!Array.isArray(arr)) { ok = false; return; }
+      out[c] = [];
+      arr.forEach(function (d) {
+        if (!d || typeof d.id !== 'string' || !d.id || d.id.length > 200 || d.id.indexOf('/') > -1 || !d.data || typeof d.data !== 'object' || Array.isArray(d.data)) { ok = false; return; }
+        out[c].push({ id: d.id, data: d.data });
+      });
+      counts[c] = out[c].length;
+    });
+    return ok ? { at: String(j.at || ''), da: String(j.da || ''), data: out, counts: counts } : null;
+  }
+  function showBackupSummary(b) {
+    var el = document.getElementById('bk-sum'); if (!el) return;
+    var d = new Date(b.at), when = isNaN(d) ? 'senza data' : 'del ' + d.toLocaleString('it-IT', { day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+    var parts = BK_COLS.map(function (c) { return b.counts[c] + ' ' + BK_NAMES[c]; });
+    el.innerHTML = '<p class="prev">Backup ' + esc(when) + (b.da ? ' (fatto da ' + esc(b.da) + ')' : '') + ':<br>' + esc(parts.join(', ')) + '.</p>' +
+      '<p class="hint">Il ripristino sostituisce tutti i dati attuali, per tutti quelli che usano l\u2019app. Prima scarico in automatico un backup dei dati di adesso.</p>' +
+      '<button type="button" class="ghost block danger" data-act="bk-restore">Sostituisci tutti i dati con questo backup</button>';
+  }
+  function restoreBackup(b) {
+    closeSheet();
+    showToast('Salvo prima i dati attuali, poi ripristino…', null, null, 60000);
+    downloadBackup('prima-del-ripristino', false).then(function () {
+      var chain = Promise.resolve(), n = 0;
+      BK_COLS.forEach(function (c) {
+        if (c === 'storico' && state.serr) return;
+        var keep = {};
+        b.data[c].forEach(function (d) { keep[d.id] = 1; });
+        (state.raw[c] || []).forEach(function (d) { if (!keep[d.id]) chain = chain.then(function () { return del(c, d.id); }); });
+        b.data[c].forEach(function (d) { chain = chain.then(function () { n++; return put(c, d.id, d.data); }); });
+      });
+      return chain.then(function () { showToast('Ripristino completato: ' + n + ' elementi.'); }, function () { showToast('Il ripristino si è interrotto: riprova. I dati di prima sono nel backup appena scaricato.', null, null, 12000); });
+    });
+  }
+  document.getElementById('bakFile').addEventListener('change', function (e) {
+    var f = e.target.files && e.target.files[0];
+    e.target.value = '';
+    if (!f) return;
+    if (!sheet || sheet.type !== 'backup') openBackup();
+    var fr = new FileReader();
+    fr.onload = function () {
+      var b = parseBackup(String(fr.result || ''));
+      if (!sheet || sheet.type !== 'backup') return;
+      if (!b) { sheet.bk = null; setErr('Questo file non è un backup di Appalti valido.'); var s0 = document.getElementById('bk-sum'); if (s0) s0.innerHTML = ''; return; }
+      setErr(''); sheet.bk = b; sheet.arm = false; showBackupSummary(b);
+    };
+    fr.onerror = function () { setErr('Non riesco a leggere il file.'); };
+    fr.readAsText(f);
+  });
+
+  /* ---------- Uscita: chiude la sessione e cancella la copia dei dati da questo dispositivo ---------- */
+  function ssSet(k, v) { try { sessionStorage.setItem(k, v); } catch (e) {} }
+  function logoutAll() {
+    if (!auth) return;
+    showToast('Esco e cancello i dati da questo dispositivo…', null, null, 20000);
+    signOut(auth).catch(function () {}).then(function () {
+      return typeof fsdb !== 'undefined' && fsdb ? terminate(fsdb).then(function () { return clearIndexedDbPersistence(fsdb); }) : null;
+    }).then(function () {
+      lsSet('appalti.wipeCache', ''); ssSet('appalti.out', 'ok');
+    }, function () {
+      lsSet('appalti.wipeCache', '1'); ssSet('appalti.out', 'later');   // un'altra scheda aperta: si cancella al prossimo avvio
+    }).then(function () { location.reload(); });
+  }
+
   function applyMainFilter() {
     var q = wtoks(document.getElementById('mq').value), shown = 0;
     root.classList.toggle('searching', q.length > 0);
@@ -674,6 +943,7 @@ const firebaseConfig = {
     if (!el) return;
     if (isNaN(r) || isNaN(s) || isNaN(l)) { el.innerHTML = 'Utile su questo appalto: <b>–</b>'; return; }
     el.innerHTML = 'Utile su questo appalto: <b class="' + negCls(r - l).trim() + '">' + eur(r - l) + '</b> al mese' +
+      (function () { var mi = mInfo(r, l); return mi.t ? ' · margine <b class="pct ' + mi.c + '" style="display:inline;font-size:inherit">' + mi.t + '</b>' : ''; })() +
       (l < s ? '<br><small>Il lordo è più basso del netto: controlla gli importi.</small>' : '');
   }
 
@@ -1488,6 +1758,7 @@ const firebaseConfig = {
       h += '<button type="button" class="wd' + (d === ds ? ' sel' : '') + (d === today ? ' today' : '') + '" data-act="day" data-date="' + d + '" aria-label="' + esc(longDate(d)) + '"><span>' + DOWS[i] + '</span><b>' + pdate(d).getDate() + '</b><i class="dot ' + st.c + '">' + st.t + '</i></button>';
     }
     h += '</div>';
+    h += '<div class="pcol">';
     h += '<h2 class="dh">' + esc(cap(longDate(ds))) + '</h2>';
     var ss = sentState(ds), pdoc = dayDoc(ds);
     if (info.day.squadre.length) {
@@ -1535,6 +1806,7 @@ const firebaseConfig = {
       h += '</details>';
     }
 
+    h += '</div><div class="pcol">';
     // Squadre
     var free = freeJolly(info, ds);
     h += '<section class="card"><div class="chead"><div><h2>Squadre</h2><p class="meta">' +
@@ -1567,7 +1839,7 @@ const firebaseConfig = {
     h += '<div class="tools"><button class="ghost" type="button" data-act="prog-pdf">PDF del giorno</button><button class="ghost" type="button" data-act="prog-text">Invia testo</button>' +
       '<button class="ghost" type="button" data-act="jolly">Gestisci jolly</button><button class="ghost" type="button" data-act="days" data-only="0">Giorni degli appalti</button>' +
       '<button class="ghost" type="button" data-act="pimport">Incolla programma</button><button class="ghost" type="button" data-act="copy-week">Copia settimana scorsa</button></div>';
-    return h;
+    return h + '</div>';
   }
 
   /* --- schede --- */
@@ -2277,6 +2549,7 @@ const firebaseConfig = {
     state.cleaners.slice().forEach(function (c) { chain = chain.then(function () { return del('cleaners', c.id); }); });
     state.assenze.slice().forEach(function (a) { chain = chain.then(function () { return del('assenze', a.id); }); });
     state.programma.slice().forEach(function (p) { chain = chain.then(function () { return del('programma', p.id); }); });
+    if (!state.serr) state.storico.slice().forEach(function (m) { chain = chain.then(function () { return del('storico', m.id); }); });
     guard(chain);
   }
 
@@ -2297,7 +2570,18 @@ const firebaseConfig = {
         dupApply(pk);
         break;
       case 'unassign': unassignWithUndo(id); break;
-      case 'logout': if (auth) signOut(auth); break;
+      case 'logout': logoutAll(); break;
+      case 'sort': state.sort = el.getAttribute('data-v') === 'utile' ? 'utile' : 'nome'; lsSet('appalti.sort', state.sort); render(); break;
+      case 'mf': state.mf = el.getAttribute('data-v'); lsSet('appalti.mf', state.mf); render(); break;
+      case 'close-month': closeMonth(); break;
+      case 'backup': openBackup(); break;
+      case 'bk-save': downloadBackup('', true).then(function (ok) { if (ok) showToast('Backup salvato. Conservalo in un posto sicuro.'); }); break;
+      case 'bk-open': document.getElementById('bakFile').click(); break;
+      case 'bk-restore':
+        if (!sheet || !sheet.bk) break;
+        if (!sheet.arm) { sheet.arm = true; el.textContent = 'Tocca ancora: sostituisco i dati per tutti'; break; }
+        restoreBackup(sheet.bk);
+        break;
       case 'close': closeSheet(); break;
       case 'seed': seedExample(); break;
       case 'save-next': if (sheet) { sheet.next = true; saveSheet(); } break;
@@ -2378,7 +2662,7 @@ const firebaseConfig = {
       case 'pdf-cleaner': makePdf(id); break;
       case 'wipe':
         if (!state.wipeArm) { state.wipeArm = true; render(); setTimeout(function () { if (state.wipeArm) { state.wipeArm = false; render(); } }, 5000); }
-        else { state.wipeArm = false; render(); wipeAll(); }
+        else { state.wipeArm = false; render(); showToast('Scarico un backup, poi elimino tutto…', null, null, 20000); downloadBackup('prima-di-eliminare', false).then(function () { wipeAll(); hideToast(); }); }
         break;
       case 'pick':
         var target = id, cid = null;
@@ -2422,7 +2706,13 @@ const firebaseConfig = {
   }
   document.addEventListener('click', onClick);
   root.addEventListener('toggle', function (e) { if (e.target && e.target.id === 'allDet') state.det = e.target.open; if (e.target && e.target.id === 'poolDet') state.pool = e.target.open; }, true);
-  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && sheet) closeSheet(); });
+  document.addEventListener('keydown', function (e) {
+    if (e.key === 'Escape' && sheet) { closeSheet(); return; }
+    var t = e.target, typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
+    if (typing || sheet || e.ctrlKey || e.metaKey || e.altKey || !appEl || appEl.hidden || !(state.c && state.k)) return;
+    if (e.key === '/') { var q = document.getElementById('mq'), ms = document.getElementById('mainSearch'); if (q && ms && !ms.hidden) { e.preventDefault(); q.focus(); } }
+    else if ((e.key === 'n' || e.key === 'N') && state.page === 'app') { e.preventDefault(); openCondo(null, ''); }
+  });
 
   /* ---------- Accesso e avvio ---------- */
   var bootEl = document.getElementById('boot');
@@ -2475,6 +2765,12 @@ const firebaseConfig = {
     state.cleaners = []; state.condomini = []; state.assenze = []; state.programma = [];
     state.pa = false; state.pp = false; state.perr = false;
     state.c = false; state.k = false; state.slow = false; state.denied = false; state.wipeArm = false;
+    state.storico = []; state.ps = false; state.serr = false; state.raw = {}; state.closeArm = false;
+  }
+  function rawOf(snap) { return snap.docs.map(function (d) { return { id: d.id, data: d.data() }; }); }
+  function mapMonth(d) {
+    var o = d.data() || {}, t = o.tot || {};
+    return { id: d.id, at: Number(o.at) || 0, tot: { r: Number(t.r) || 0, l: Number(t.l) || 0, s: Number(t.s) || 0, u: Number(t.u) || 0 }, pul: Array.isArray(o.pul) ? o.pul : [] };
   }
 
   function startData() {
@@ -2487,22 +2783,31 @@ const firebaseConfig = {
     }
     function done() { if (state.c && state.k) clearTimeout(slowTimer); }
     unsubs.push(db.collection('cleaners').onSnapshot(function (snap) {
+      state.raw.cleaners = rawOf(snap);
       state.cleaners = snap.docs.map(mapCleaner).sort(function (a, b) { return a.ordine - b.ordine; });
       state.c = true; done(); render();
     }, fail));
     unsubs.push(db.collection('condomini').onSnapshot(function (snap) {
+      state.raw.condomini = rawOf(snap);
       state.condomini = snap.docs.map(mapCondo);
       state.k = true; done(); render();
     }, fail));
     function failP() { state.perr = true; render(); }
     unsubs.push(db.collection('assenze').onSnapshot(function (snap) {
+      state.raw.assenze = rawOf(snap);
       state.assenze = snap.docs.map(mapAssenza);
       state.pa = true; render();
     }, failP));
     unsubs.push(db.collection('programma').onSnapshot(function (snap) {
+      state.raw.programma = rawOf(snap);
       state.programma = snap.docs.map(mapDay);
       state.pp = true; render();
     }, failP));
+    unsubs.push(db.collection('storico').onSnapshot(function (snap) {
+      state.raw.storico = rawOf(snap);
+      state.storico = snap.docs.filter(function (d) { return /^\d{4}-\d{2}$/.test(d.id); }).map(mapMonth).sort(function (a, b) { return a.id < b.id ? -1 : 1; });
+      state.ps = true; state.serr = false; render();
+    }, function () { state.serr = true; render(); }));
   }
 
   var cfg = firebaseConfig;
@@ -2520,6 +2825,10 @@ const firebaseConfig = {
       fsdb = getFirestore(fapp);
     }
     db = makeDb(fsdb);
+    // Se all'ultima uscita la copia offline non si è potuta cancellare (altra scheda aperta), riprovo ora, prima di leggere i dati
+    var ready = lsGet('appalti.wipeCache', '') === '1'
+      ? clearIndexedDbPersistence(fsdb).then(function () { lsSet('appalti.wipeCache', ''); }, function () {})
+      : Promise.resolve();
 
     loginForm.addEventListener('submit', function (e) {
       e.preventDefault();
@@ -2540,7 +2849,7 @@ const firebaseConfig = {
       }, function (err) { setLoginMsg(authMsg(err)); });
     });
 
-    onAuthStateChanged(auth, function (user) {
+    ready.then(function () { onAuthStateChanged(auth, function (user) {
       if (user) {
         state.user = user.email || '';
         showApp();
@@ -2550,20 +2859,43 @@ const firebaseConfig = {
         state.user = '';
         document.getElementById('l-pass').value = '';
         showLogin();
+        var out = ''; try { out = sessionStorage.getItem('appalti.out') || ''; sessionStorage.removeItem('appalti.out'); } catch (e) {}
+        if (out === 'ok') setLoginMsg('Sei uscito. I dati sono stati cancellati da questo dispositivo.', true);
+        else if (out === 'later') setLoginMsg('Sei uscito. Una copia dei dati resta su questo dispositivo finché Appalti è aperta in un\u2019altra scheda o finestra: chiudila e riapri Appalti per cancellarla.');
       }
-    });
+    }); });
   }
+  // per l'avviso di aggiornamento (script in fondo)
+  window.__appalti = { busy: function () { return !!sheet; }, notify: function (msg, label, fn) { showToast(msg, label, fn, 600000); } };
 })();
 </script>
 <script>
 if ("serviceWorker" in navigator && /^https?:$/.test(location.protocol)) {
-  var hadCtl = !!navigator.serviceWorker.controller, reloaded = false;
-  navigator.serviceWorker.addEventListener("controllerchange", function () {
-    if (!hadCtl || reloaded) { hadCtl = true; return; }
-    reloaded = true;
-    var t = setInterval(function () { var sr = document.getElementById('sheetRoot'); if (!sr || !sr.firstChild) { clearInterval(t); location.reload(); } }, 800);
-  });
-  window.addEventListener("load", function () { navigator.serviceWorker.register("sw.js").then(function (r) { try { r.update(); } catch (e) {} }).catch(function () {}); });
+  // Aggiornamenti: avvisa quando c'è una versione nuova e ricarica solo senza moduli aperti
+  (function () {
+    var sw = navigator.serviceWorker, hadCtl = !!sw.controller, waiting = null, reloading = false;
+    function busy() { return !!(window.__appalti && window.__appalti.busy()); }
+    function activate() { if (waiting) waiting.postMessage("SKIP_WAITING"); }
+    function offer(w) {
+      if (!w || !hadCtl || waiting) return;
+      waiting = w;
+      (function tell() { if (window.__appalti) window.__appalti.notify("Nuova versione di Appalti disponibile.", "Aggiorna", activate); else setTimeout(tell, 500); })();
+      // se non tocchi Aggiorna, si aggiorna da sola quando lasci l'app (e nessun modulo è aperto)
+      document.addEventListener("visibilitychange", function () { if (document.hidden && !busy()) activate(); });
+    }
+    sw.addEventListener("controllerchange", function () {
+      if (!hadCtl || reloading) { hadCtl = true; return; }
+      reloading = true;
+      (function go() { if (busy()) { setTimeout(go, 800); return; } location.reload(); })();
+    });
+    window.addEventListener("load", function () {
+      sw.register("sw.js").then(function (r) {
+        if (r.waiting) offer(r.waiting);
+        r.addEventListener("updatefound", function () { var w = r.installing; if (w) w.addEventListener("statechange", function () { if (w.state === "installed") offer(w); }); });
+        try { r.update(); } catch (e) {}
+      }).catch(function () {});
+    });
+  })();
 }
 </script>
 </body>
